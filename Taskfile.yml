@@ -1,0 +1,234 @@
+version: '3'
+
+vars:
+  BUILD_SYSTEM: "{{default .BUILD_SYSTEM \"cmake\"}}"
+  BUILD_DIR: "{{default .BUILD_DIR \"build\"}}"
+  BUILD_TYPE: "{{default .BUILD_TYPE \"Release\"}}"
+  COMPILER: "{{default .COMPILER \"clang++\"}}"
+  LINTER: "{{default .LINTER \"clang-tidy\"}}"
+  FORMATTER: "{{default .FORMATTER \"clang-format\"}}"
+
+tasks:
+  # Build tasks
+  build:
+    desc: "Build project (default: {{.BUILD_SYSTEM}})"
+    deps:
+      - "build:{{.BUILD_SYSTEM}}"
+
+  build:cmake:
+    desc: "Build project using CMake"
+    deps:
+      - task: which
+        vars:
+          COMMAND: 'cmake'
+      - task: clean:cmake
+    cmds:
+      - cmake -B {{.BUILD_DIR}} -DCMAKE_BUILD_TYPE={{.BUILD_TYPE}} -DCMAKE_CXX_COMPILER={{.COMPILER}} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      - cmake --build {{.BUILD_DIR}} --parallel
+
+  build:xmake:
+    desc: "Build project using XMake"
+    deps:
+      - task: which
+        vars:
+          COMMAND: 'xmake'
+      - task: clean:xmake
+    cmds:
+      - xmake f -m {{.BUILD_TYPE | lower}} --toolchain=clang
+      - xmake build
+
+  # CI/CD tasks
+  ci:
+    desc: "Run CI pipeline (format check, build, test)"
+    deps:
+      - lint
+      - format:check
+      - build
+      - test
+
+  # Clean tasks
+  clean:
+    desc: "Clean all builds"
+    deps: [clean:cmake, clean:xmake]
+
+  clean:cmake:
+    desc: "Clean CMake build"
+    deps:
+      - task: which
+        vars:
+          COMMAND: 'cmake'
+    cmds:
+      - rm -rf {{.BUILD_DIR}}
+
+  clean:xmake:
+    desc: "Clean XMake build"
+    deps:
+      - task: which
+        vars:
+          COMMAND: 'xmake'
+    cmds:
+      - xmake clean
+
+  # Debug tasks
+  debug:
+    desc: "Run application with debugger"
+    deps:
+      - task: which
+        vars:
+          COMMAND: 'gdb'
+      - task: build
+        vars: {BUILD_TYPE: "Debug"}
+    cmds:
+      - gdb ./{{.BUILD_DIR}}/src/cpp-template
+
+  default:
+    desc: "Show available tasks"
+    cmds:
+      - task --list
+
+  # Package management
+  deps:install:
+    desc: "Install dependencies"
+    deps:
+      - task: which
+        vars:
+          COMMANDS: 'conan vcpkg'
+    cmds:
+      - |
+        if command -v conan &> /dev/null; then
+          conan install . --build=missing
+        elif command -v vcpkg &> /dev/null; then
+          vcpkg install gtest
+        else
+          echo "Please install Conan or vcpkg for dependency management"
+        fi
+
+  # Documentation
+  docs:
+    desc: "Generate documentation with Doxygen"
+    deps:
+      - task: which
+        vars:
+          COMMAND: 'doxygen'
+    cmds:
+      - doxygen Doxyfile
+
+  # Development tasks
+  format:
+    desc: "Format code using {{.FORMATTER}}"
+    deps:
+      - task: which
+        vars:
+          COMMAND: '{{.FORMATTER}}'
+    cmds:
+      - find src include tests -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | xargs {{.FORMATTER}} -i --style=Google
+
+  format:check:
+    desc: "Check code formatting"
+    deps:
+      - task: which
+        vars:
+          COMMAND: '{{.FORMATTER}}'
+    cmds:
+      - find src include tests -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | xargs {{.FORMATTER}} --dry-run --Werror --style=Google
+
+  lint:
+    desc: "Run {{.LINTER}} linter"
+    deps:
+      - task: which
+        vars:
+          COMMAND: '{{.LINTER}}'
+      - build:cmake
+    cmds:
+      - |
+        echo "Running clang-tidy..."
+        find src -name "*.cpp" | while read -r file; do
+          echo "Linting $file..."
+          {{.LINTER}} --config-file=.clang-tidy --extra-arg=-Iinclude --extra-arg=-std=c++20 --extra-arg=-stdlib=libc++ "$file" || true
+        done
+        echo "Linting completed"
+
+  # Run tasks
+  run:
+    desc: "Run the application (default: {{.BUILD_SYSTEM}})"
+    deps:
+      - "run:{{.BUILD_SYSTEM}}"
+
+  run:cmake:
+    desc: "Run the application (CMake build)"
+    deps: [build:cmake]
+    cmds:
+      - ./{{.BUILD_DIR}}/src/cpp-template
+
+  run:xmake:
+    desc: "Run the application (XMake build)"
+    deps: [build:xmake]
+    cmds:
+      - xmake run cpp-template
+
+  # Test tasks
+  test:
+    desc: "Run tests (default: {{.BUILD_SYSTEM}})"
+    deps:
+      - "test:{{.BUILD_SYSTEM}}"
+
+  test:cmake:
+    desc: "Run tests using CMake"
+    deps:
+      - task: which
+        vars:
+          COMMAND: 'ctest'
+      - build:cmake
+    cmds:
+      - cd {{.BUILD_DIR}} && ctest --output-on-failure
+
+  test:xmake:
+    desc: "Run tests using XMake"
+    deps:
+      - task: which
+        vars:
+          COMMAND: 'xmake'
+      - build:xmake
+    cmds:
+      - xmake run cpp-template-tests
+
+  valgrind:
+    desc: "Run application with Valgrind"
+    deps:
+      - task: which
+        vars:
+          COMMAND: 'valgrind'
+      - task: build
+        vars: {BUILD_TYPE: "Debug"}
+    cmds:
+      - valgrind --leak-check=full --show-leak-kinds=all ./{{.BUILD_DIR}}/src/cpp-template
+
+  which:
+    desc: "Check if at least one command exists"
+    cmds:
+      - |
+        if [ -n "{{.COMMANDS}}" ]; then
+          # Multiple commands provided (space-separated)
+          COMMANDS="{{.COMMANDS}}"
+          found=false
+          for cmd in $COMMANDS; do
+            if command -v "$cmd" > /dev/null 2>&1; then
+              echo "Found command: $cmd"
+              found=true
+              break
+            fi
+          done
+          if [ "$found" = false ]; then
+            echo "None of the commands found: $COMMANDS"
+            exit 1
+          fi
+        elif [ -n "{{.COMMAND}}" ]; then
+          # Single command provided
+          if ! command -v {{.COMMAND}} > /dev/null 2>&1; then
+            echo "Command '{{.COMMAND}}' not found."
+            exit 1
+          fi
+        else
+          echo "No COMMAND or COMMANDS specified"
+          exit 1
+        fi

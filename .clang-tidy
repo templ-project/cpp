@@ -1,0 +1,18 @@
+---
+Checks: |
+  bugprone-*,
+  cppcoreguidelines-*,
+  google-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -modernize-use-ranges,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -readability-identifier-naming,
+  -readability-identifier-length
+WarningsAsErrors: ''
+HeaderFilterRegex: ''
+FormatStyle: google
+---
