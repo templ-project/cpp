@@ -8,6 +8,11 @@ set_description("A C++ Bootstrap/Template project using modern tools and best pr
 -- Set C++ standard
 set_languages("c++20")
 
+-- Windows-specific: Use dynamic runtime (MD) to match GTest
+if is_plat("windows") then
+    set_runtimes("MD")
+end
+
 -- Set warnings and optimizations
 if is_mode("debug") then
     set_symbols("debug")
@@ -24,7 +29,8 @@ end
 
 -- Compiler configuration
 set_toolchains("clang")
-add_cxflags("-Wall", "-Wextra", "-Wpedantic", "-Werror")
+-- Disable -Werror for better third-party compatibility
+add_cxflags("-Wall", "-Wextra", "-Wpedantic")
 
 -- Include directories
 add_includedirs("include")
@@ -38,12 +44,18 @@ target("cpp-template")
     add_files("src/*.cpp")
     add_headerfiles("include/**.hpp")
 
--- Target: tests
+-- Target: Google Test tests
 target("cpp-template-tests")
     set_kind("binary")
     set_default(false)
-    add_files("tests/*.cpp", "src/greeter.cpp")
+    add_files("tests/test_greeter.cpp", "src/greeter.cpp")
     add_packages("gtest")
+
+    -- Windows: Ensure consistent runtime library
+    if is_plat("windows") then
+        set_runtimes("MD")
+    end
+
     after_build(function (target)
         os.exec(target:targetfile())
     end)

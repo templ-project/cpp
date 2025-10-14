@@ -45,11 +45,13 @@ task test
 We follow the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html).
 
 ### Formatting
+
 - Use clang-format with Google style
 - Run: `task format`
 - Check: `task format:check`
 
 ### Linting
+
 - Use clang-tidy for static analysis
 - Run: `task lint`
 - Configuration in `.clang-tidy`
@@ -290,6 +292,7 @@ perf: performance improvements
 ```
 
 Examples:
+
 ```
 feat: add Goodbye function to greeter module
 fix: handle empty string input in Hello function
@@ -303,6 +306,7 @@ perf: optimize string trimming in greeter
 ### Bug Reports
 
 Include:
+
 - Operating system and version
 - Compiler and version
 - CMake/XMake version
@@ -314,6 +318,7 @@ Include:
 ### Feature Requests
 
 Include:
+
 - Use case description
 - Proposed API/interface
 - Benefits to users

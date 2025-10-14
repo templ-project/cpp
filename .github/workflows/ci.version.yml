@@ -1,0 +1,94 @@
+name: CI Version
+
+on:
+  workflow_call:
+    inputs:
+      version_type:
+        description: 'Version bump type (major, minor, patch)'
+        required: false
+        type: string
+        default: 'patch'
+    outputs:
+      new_version:
+        description: 'The new version number'
+        value: ${{ jobs.version.outputs.new_version }}
+      version_tag:
+        description: 'The version tag (e.g., v1.2.3)'
+        value: ${{ jobs.version.outputs.version_tag }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+      version_tag: ${{ steps.bump.outputs.version_tag }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get current version
+      id: current
+      run: |
+        # Try to get version from CMakeLists.txt
+        if grep -q "VERSION" CMakeLists.txt; then
+          VERSION=$(grep -oP 'VERSION\s+\K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt | head -1)
+        else
+          VERSION="1.0.0"
+        fi
+        echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $VERSION"
+
+    - name: Bump version
+      id: bump
+      run: |
+        CURRENT="${{ steps.current.outputs.current_version }}"
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+        case "${{ inputs.version_type }}" in
+          major)
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            ;;
+          minor)
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            ;;
+          patch)
+            PATCH=$((PATCH + 1))
+            ;;
+        esac
+
+        NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "version_tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "New version: $NEW_VERSION"
+
+    - name: Update version in files
+      run: |
+        NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+
+        # Update CMakeLists.txt
+        if [ -f CMakeLists.txt ]; then
+          sed -i "s/VERSION [0-9]\+\.[0-9]\+\.[0-9]\+/VERSION $NEW_VERSION/" CMakeLists.txt
+        fi
+
+        # Update xmake.lua
+        if [ -f xmake.lua ]; then
+          sed -i "s/set_version(\"[0-9]\+\.[0-9]\+\.[0-9]\+\")/set_version(\"$NEW_VERSION\")/" xmake.lua
+        fi
+
+        # Update package.json if it exists
+        if [ -f package.json ]; then
+          sed -i "s/\"version\": \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/\"version\": \"$NEW_VERSION\"/" package.json
+        fi
+
+    - name: Commit version bump
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add -A
+        git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}" || echo "No changes to commit"
+        git push

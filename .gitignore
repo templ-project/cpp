@@ -1,6 +1,23 @@
+# Code with AI
+.cwai
+specs
+.specs
+
+# Bootstrap files
+_install/__pycache__/
+
+# Node modules
+node_modules/
+package-lock.json
+package.json
+.jscpd/html/
+
 # Build Folders
 /build
 /Release
+
+# Dependencies folder (Conan output)
+/lib
 
 # Generated Documentation
 /docs

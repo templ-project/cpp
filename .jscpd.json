@@ -1,0 +1,21 @@
+{
+  "threshold": 1,
+  "reporters": [
+    "html",
+    "console",
+    "badge"
+  ],
+  "output": ".jscpd",
+  "ignore": [
+    "build/**",
+    "docs/**",
+    "_install/**",
+    ".git/**",
+    ".xmake/**"
+  ],
+  "absolute": true,
+  "gitignore": true,
+  "silent": false,
+  "blame": true,
+  "cache": true
+}

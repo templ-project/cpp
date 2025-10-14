@@ -12,15 +12,17 @@
 #include "greeter.hpp"
 
 void test_hello_basic() {
-  std::string result = cpp_template::Hello("World");
+  const std::string result = cpp_template::Hello("World");
+  (void)result;  // Explicitly mark as used for clang-tidy
   assert(result == "Hello, World!");
-  std::cout << "✓ Hello basic test passed" << std::endl;
+  std::cout << "✓ Hello basic test passed" << '\n';
 }
 
 void test_hello_with_whitespace() {
-  std::string result = cpp_template::Hello("  C++  ");
+  const std::string result = cpp_template::Hello("  C++  ");
+  (void)result;  // Explicitly mark as used for clang-tidy
   assert(result == "Hello, C++!");
-  std::cout << "✓ Hello whitespace test passed" << std::endl;
+  std::cout << "✓ Hello whitespace test passed" << '\n';
 }
 
 void test_hello_empty_throws() {
@@ -28,24 +30,25 @@ void test_hello_empty_throws() {
     cpp_template::Hello("");
     assert(false && "Should have thrown exception");
   } catch (const cpp_template::InvalidNameError&) {
-    std::cout << "✓ Hello empty string test passed" << std::endl;
+    std::cout << "✓ Hello empty string test passed" << '\n';
   }
 }
 
 void test_goodbye_basic() {
-  std::string result = cpp_template::Goodbye("World");
+  const std::string result = cpp_template::Goodbye("World");
+  (void)result;  // Explicitly mark as used for clang-tidy
   assert(result == "Goodbye, World!");
-  std::cout << "✓ Goodbye basic test passed" << std::endl;
+  std::cout << "✓ Goodbye basic test passed" << '\n';
 }
 
 void test_trim_function() {
   assert(cpp_template::Trim("  hello  ") == "hello");
-  assert(cpp_template::Trim("") == "");
-  std::cout << "✓ Trim function test passed" << std::endl;
+  assert(cpp_template::Trim("").empty());
+  std::cout << "✓ Trim function test passed" << '\n';
 }
 
 int main() {
-  std::cout << "Running simple C++ template tests..." << std::endl;
+  std::cout << "Running simple C++ template tests..." << '\n';
 
   try {
     test_hello_basic();
@@ -54,10 +57,10 @@ int main() {
     test_goodbye_basic();
     test_trim_function();
 
-    std::cout << "\n✅ All tests passed!" << std::endl;
+    std::cout << "\n✅ All tests passed!" << '\n';
     return 0;
   } catch (const std::exception& e) {
-    std::cerr << "\n❌ Test failed: " << e.what() << std::endl;
+    std::cerr << "\n❌ Test failed: " << e.what() << '\n';
     return 1;
   }
 }

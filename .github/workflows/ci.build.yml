@@ -1,0 +1,79 @@
+name: CI Build
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        description: 'Operating system to run on'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+      llvm_versions:
+        description: 'LLVM versions to test (JSON array)'
+        required: false
+        type: string
+        # https://releases.llvm.org/
+        # https://github.com/KyleMayes/install-llvm-action/blob/master/assets.json
+        # default: '["20.1.7", "19.1.7", "18.1.8", "17.0.5", "16.0.4"]'
+        default: '["20"]'
+      build_system:
+        description: 'Build system to use (JSON array)'
+        required: false
+        type: string
+        default: '["cmake", "xmake"]'
+        # default: '["cmake"]'
+
+jobs:
+  build:
+    runs-on: ${{ inputs.os }}
+    strategy:
+      matrix:
+        build_system: ${{ fromJSON(inputs.build_system) }}
+        llvm_versions: ${{ fromJSON(inputs.llvm_versions) }}
+    steps:
+    - uses: ZhongRuoyu/setup-llvm@v0
+      with:
+        llvm-version: ${{ matrix.llvm_versions }}
+
+    - if: ${{ matrix.build_system == 'cmake' && runner.os == 'macOS' }}
+      run: |
+        brew install cmake
+
+    - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Linux' }}
+      run: |
+        sudo apt update && sudo apt install -y cmake
+
+    - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Windows' }}
+      run: |
+        choco install cmake -y
+
+    - if: ${{ matrix.build_system == 'xmake' && runner.os != 'Windows' }}
+      run: |
+        curl -fsSL https://xmake.io/shget.text | bash
+
+    - if: ${{ matrix.build_system == 'xmake' && runner.os == 'Windows' }}
+      run: |
+        irm https://xmake.io/psget.text | iex
+
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+
+    - run: |
+        pip3 install conan
+        conan profile detect
+
+    - uses: go-task/setup-task@v1
+
+    - name: Test binaries
+      run: |
+        clang++ --version
+        ${{ matrix.build_system }} --version
+        task --version
+        conan --version
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build
+      run: task clean deps:install build CPP_BUILD_SYSTEM=${{ matrix.build_system }}

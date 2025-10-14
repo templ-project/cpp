@@ -5,116 +5,55 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        build_type: [Debug, Release]
-        compiler: [clang++]
-        include:
-          - os: ubuntu-latest
-            compiler: g++
-            build_type: Release
+  # # Validation pipeline (format, lint, duplicate-check, test)
+  # validate:
+  #   name: Validate Code
+  #   uses: ./.github/workflows/ci.validate.yml
+  #   with:
+  #     os: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  # Build matrix for different platforms and configurations
+  build-linux-release:
+    name: Build Linux Release
+    # needs: validate
+    uses: ./.github/workflows/ci.build.yml
+    with:
+      os: ubuntu-latest
 
-    - name: Install dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang clang-tidy clang-format
-        sudo apt-get install -y libgtest-dev cmake
-        cd /usr/src/gtest
-        sudo cmake CMakeLists.txt
-        sudo make
-        sudo cp lib/*.a /usr/lib
+  build-macos-release:
+    name: Build macOS Release
+    # needs: validate
+    uses: ./.github/workflows/ci.build.yml
+    with:
+      os: macos-latest
 
-    - name: Install dependencies (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install llvm googletest cmake
-        echo "/usr/local/opt/llvm/bin" >> $GITHUB_PATH
+  build-windows-release:
+    name: Build Windows Release
+    # needs: validate
+    uses: ./.github/workflows/ci.build.yml
+    with:
+      os: windows-latest
 
-    - name: Install dependencies (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        choco install llvm cmake
-        vcpkg install gtest
+  # # Version bump (only on main branch push or manual trigger)
+  # version:
+  #   name: Bump Version
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event.inputs.perform_release == 'true'
+  #   needs: [build-linux-release, build-linux-debug, build-macos-release, build-macos-debug, build-windows-release, build-windows-debug]
+  #   uses: ./.github/workflows/ci.version.yml
+  #   with:
+  #     version_type: ${{ github.event.inputs.version_type || 'patch' }}
 
-    - name: Configure CMake
-      run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
-
-    - name: Build
-      run: cmake --build build --config ${{ matrix.build_type }} --parallel
-
-    - name: Test
-      working-directory: build
-      run: ctest --output-on-failure --build-config ${{ matrix.build_type }}
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: cpp-template-${{ matrix.os }}-${{ matrix.build_type }}
-        path: build/src/cpp-template*
-
-  format-check:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install clang-format
-      run: sudo apt-get install -y clang-format
-
-    - name: Check formatting
-      run: |
-        find src include tests -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | \
-        xargs clang-format --dry-run --Werror --style=Google
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install clang-tidy
-      run: sudo apt-get install -y clang-tidy
-
-    - name: Configure for linting
-      run: cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-
-    - name: Run clang-tidy
-      run: |
-        find src -name "*.cpp" | \
-        xargs clang-tidy --config-file=.clang-tidy -p build
-
-  xmake-build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        mode: [debug, release]
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install XMake
-      uses: xmake-io/github-action-setup-xmake@v1
-      with:
-        xmake-version: latest
-
-    - name: Configure XMake
-      run: xmake f -m ${{ matrix.mode }} --toolchain=clang
-
-    - name: Build with XMake
-      run: xmake build
-
-    - name: Test with XMake
-      run: xmake run cpp-template-tests
+  # # Release (only on main branch push or manual trigger)
+  # release:
+  #   name: Create Release
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event.inputs.perform_release == 'true'
+  #   needs: version
+  #   uses: ./.github/workflows/ci.release.yml
+  #   with:
+  #     version_tag: ${{ needs.version.outputs.version_tag }}
+  #     prerelease: false
+  #   permissions:
+  #     contents: write

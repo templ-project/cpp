@@ -25,7 +25,55 @@ class InvalidNameError : public std::invalid_argument {
 };
 
 /**
- * @brief Creates a greeting message for the specified name
+ * @brief A Greeter class that provides greeting and farewell functionality
+ *
+ * Demonstrates proper class structure following Google C++ Style Guide.
+ * This class provides methods for creating greeting and farewell messages.
+ */
+class Greeter {
+ public:
+  /**
+   * @brief Default constructor
+   */
+  Greeter() = default;
+
+  /**
+   * @brief Creates a greeting message for the specified name
+   *
+   * @param name The name to greet (must be non-empty)
+   * @return std::string A formatted greeting message
+   * @throws InvalidNameError When name is empty or only whitespace
+   *
+   * Example usage:
+   * @code
+   * Greeter greeter;
+   * std::string message = greeter.Hello("World");
+   * // Returns: "Hello, World!"
+   * @endcode
+   */
+  static std::string Hello(const std::string& name);
+
+  /**
+   * @brief Creates a farewell message for the specified name
+   *
+   * @param name The name to bid farewell (must be non-empty)
+   * @return std::string A formatted farewell message
+   * @throws InvalidNameError When name is empty or only whitespace
+   *
+   * Example usage:
+   * @code
+   * Greeter greeter;
+   * std::string message = greeter.Goodbye("World");
+   * // Returns: "Goodbye, World!"
+   * @endcode
+   */
+  static std::string Goodbye(const std::string& name);
+};
+
+/**
+ * @brief Convenience function that creates a greeting message
+ *
+ * Uses a default Greeter instance for convenient standalone usage.
  *
  * @param name The name to greet (must be non-empty)
  * @return std::string A formatted greeting message
@@ -43,7 +91,9 @@ class InvalidNameError : public std::invalid_argument {
 std::string Hello(const std::string& name);
 
 /**
- * @brief Creates a farewell message for the specified name
+ * @brief Convenience function that creates a farewell message
+ *
+ * Uses a default Greeter instance for convenient standalone usage.
  *
  * @param name The name to bid farewell (must be non-empty)
  * @return std::string A formatted farewell message

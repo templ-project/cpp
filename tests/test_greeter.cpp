@@ -97,6 +97,63 @@ TEST_F(GreeterTest, InvalidNameErrorIsStdInvalidArgument) {
   }
 }
 
+// Test fixture for Greeter class
+class GreeterClassTest : public ::testing::Test {
+ protected:
+  Greeter greeter;
+};
+
+// Tests for Greeter class Hello method
+TEST_F(GreeterClassTest, HelloReturnsGreetingForValidName) {
+  const std::string result = Greeter::Hello("World");
+  EXPECT_EQ(result, "Hello, World!");
+}
+
+TEST_F(GreeterClassTest, HelloHandlesNamesWithWhitespace) {
+  const std::string result = Greeter::Hello("  C++  ");
+  EXPECT_EQ(result, "Hello, C++!");
+}
+
+TEST_F(GreeterClassTest, HelloThrowsForEmptyString) {
+  EXPECT_THROW(greeter.Hello(""), InvalidNameError);
+}
+
+TEST_F(GreeterClassTest, HelloThrowsForWhitespaceOnlyString) {
+  EXPECT_THROW(greeter.Hello("   "), InvalidNameError);
+  EXPECT_THROW(greeter.Hello("\t\n"), InvalidNameError);
+}
+
+TEST_F(GreeterClassTest, HelloHandlesSpecialCharacters) {
+  const std::string result = Greeter::Hello("C++20");
+  EXPECT_EQ(result, "Hello, C++20!");
+}
+
+// Tests for Greeter class Goodbye method
+TEST_F(GreeterClassTest, GoodbyeReturnsGreetingForValidName) {
+  const std::string result = Greeter::Goodbye("World");
+  EXPECT_EQ(result, "Goodbye, World!");
+}
+
+TEST_F(GreeterClassTest, GoodbyeHandlesNamesWithWhitespace) {
+  const std::string result = Greeter::Goodbye("  C++  ");
+  EXPECT_EQ(result, "Goodbye, C++!");
+}
+
+TEST_F(GreeterClassTest, GoodbyeThrowsForEmptyString) {
+  EXPECT_THROW(greeter.Goodbye(""), InvalidNameError);
+}
+
+TEST_F(GreeterClassTest, GoodbyeThrowsForWhitespaceOnlyString) {
+  EXPECT_THROW(greeter.Goodbye("   "), InvalidNameError);
+  EXPECT_THROW(greeter.Goodbye("\t\n"), InvalidNameError);
+}
+
+// Test that convenience functions use the same logic as class methods
+TEST_F(GreeterClassTest, ConvenienceFunctionsMatchClassMethods) {
+  EXPECT_EQ(Hello("World"), Greeter::Hello("World"));
+  EXPECT_EQ(Goodbye("World"), Greeter::Goodbye("World"));
+}
+
 }  // namespace
 }  // namespace cpp_template
 

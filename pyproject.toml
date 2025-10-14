@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cpp-template-bootstrap"
+version = "1.0.0"
+description = "Bootstrap script for C++ template project"
+authors = [
+    {name = "Templ Project", email = "contact@templ-project.io"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+keywords = ["cpp", "c++", "template", "bootstrap", "cmake", "xmake"]
+
+[project.urls]
+Homepage = "https://github.com/templ-project/cpp"
+Repository = "https://github.com/templ-project/cpp.git"
+Issues = "https://github.com/templ-project/cpp/issues"
+
+[project.scripts]
+bootstrap = "_install.bootstrap:main"
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=3.5.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pre-commit>=3.5.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["_install*"]
+
+[tool.setuptools.package-data]
+"_install" = ["bootstrap.py"]

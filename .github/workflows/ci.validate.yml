@@ -1,0 +1,122 @@
+name:
+  CI Validate
+
+  # - uses: actions/setup-node@v6
+  #   with:
+  #     node-version: 22
+
+  # - uses: actions/setup-python@v6
+  #   with:
+  #     python-version: '3.13'
+
+  # - uses: astral-sh/setup-uv@v6
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        description: "Operating system to run on"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      llvm_versions:
+        description: "LLVM versions to test (JSON array)"
+        required: false
+        type: string
+        # https://releases.llvm.org/
+        # https://github.com/KyleMayes/install-llvm-action/blob/master/assets.json
+        # default: '["20.1.7", "19.1.7", "18.1.8", "17.0.5", "16.0.4"]'
+        default: '["20"]'
+      build_system:
+        description: "Build system to use (JSON array)"
+        required: false
+        type: string
+        default: '["cmake", "xmake"]'
+
+jobs:
+  format-check:
+    runs-on: ${{ inputs.os }}
+    strategy:
+      matrix:
+        llvm_version: ${{ fromJSON(inputs.llvm_versions) }}
+    steps:
+      - uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: ${{ matrix.llvm_version }}
+
+      - uses: go-task/setup-task@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test Code Formatting
+        run: task format:check
+
+  lint-check:
+    runs-on: ${{ inputs.os }}
+    strategy:
+      matrix:
+        llvm_version: ${{ fromJSON(inputs.llvm_versions) }}
+        build_system: ${{ fromJSON(inputs.build_system) }}
+    steps:
+      - uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: ${{ matrix.llvm_version }}
+
+      - if: ${{ matrix.build_system == 'cmake' }}
+        run: |
+          sudo apt update && sudo apt install -y cmake
+
+      - if: ${{ matrix.build_system == 'xmake' }}
+        run: |
+          curl -fsSL https://xmake.io/shget.text | bash
+
+      - uses: go-task/setup-task@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint Code
+        run: task lint:check CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+
+  duplicate-check:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - uses: go-task/setup-task@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run duplicate check
+        run: task duplicate-check
+
+  test:
+    runs-on: ${{ inputs.os }}
+    strategy:
+      matrix:
+        llvm_version: ${{ fromJSON(inputs.llvm_versions) }}
+        build_system: ${{ fromJSON(inputs.build_system) }}
+    steps:
+      - uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: ${{ matrix.llvm_version }}
+
+      - if: ${{ matrix.build_system == 'cmake' }}
+        run: |
+          sudo apt update && sudo apt install -y cmake
+
+      - if: ${{ matrix.build_system == 'xmake' }}
+        run: |
+          curl -fsSL https://xmake.io/shget.text | bash
+
+      - uses: go-task/setup-task@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test
+        run: task test CPP_BUILD_SYSTEM=${{ matrix.build_system }}

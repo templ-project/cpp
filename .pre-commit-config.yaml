@@ -1,0 +1,85 @@
+repos:
+  # Markdown validation and fixing
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint-fix
+        name: Fix Markdown files
+        stages: [commit]
+
+  - repo: local
+    hooks:
+      # Pre-commit hooks (run on every commit)
+      - id: clang-format-fix
+        name: Fix C++ formatting
+        entry: task format STAGED=1
+        language: system
+        types: [c++]
+        pass_filenames: false
+
+      - id: clang-tidy-fix
+        name: Fix C++ linting issues
+        entry: task lint STAGED=1
+        language: system
+        types: [c++]
+        pass_filenames: false
+
+      - id: duplicate-check-commit
+        name: Check for duplicate code
+        entry: bash -c "task duplicate-check; exit 0"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # TODO: No idea how this works for now
+      # - id: license-check
+      #   name: Check license headers (informational)
+      #   entry: bash -c 'files_without_license=$(find src include tests -name "*.cpp" -o -name "*.hpp" | xargs grep -L "Copyright\|License\|SPDX" 2>/dev/null || true); if [ -n "$files_without_license" ]; then echo "Files without license headers:"; echo "$files_without_license"; echo "Consider adding license headers to these files"; fi; exit 0'
+      #   language: system
+      #   pass_filenames: false
+
+      # Does C++ have any good security audit tools?
+      # - id: security-audit
+      #   name: Security audit (check for common vulnerabilities)
+      #   entry: bash -c 'find src include tests -name "*.cpp" -o -name "*.hpp" | xargs grep -n "strcpy\|strcat\|sprintf\|gets\|system(" || echo "No obvious security issues found"'
+      #   language: system
+      #   pass_filenames: false
+
+  # Built-in validators for common file types
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+        name: Validate YAML files
+        stages: [commit]
+      - id: check-json
+        name: Validate JSON files
+        stages: [commit]
+      - id: check-toml
+        name: Validate TOML files
+        stages: [commit]
+      - id: end-of-file-fixer
+        name: Fix end of files
+        stages: [commit]
+        exclude: ^\.jscpd/
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+        stages: [commit]
+        exclude: ^\.jscpd/
+
+  # Pre-push hooks (run on push only)
+  - repo: local
+    hooks:
+      - id: run-tests
+        name: Run all tests
+        entry: task test
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: build-check
+        name: Verify build succeeds
+        entry: task build
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
