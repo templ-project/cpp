@@ -13,17 +13,17 @@
 namespace cpp_template {
 
 std::string_view Trim(std::string_view str) noexcept {
-  const auto* const start =
-      std::find_if_not(str.begin(), str.end(),
-                       [](unsigned char ch) { return std::isspace(ch); });
+  // Find first non-whitespace character
+  const auto start_pos = str.find_first_not_of(" \t\n\r\f\v");
+  if (start_pos == std::string_view::npos) {
+    return {};
+  }
 
-  const auto* const end =
-      std::find_if_not(str.rbegin(), str.rend(), [](unsigned char ch) {
-        return std::isspace(ch);
-      }).base();
+  // Find last non-whitespace character
+  const auto end_pos = str.find_last_not_of(" \t\n\r\f\v");
 
-  return (start < end) ? std::string_view(&*start, std::distance(start, end))
-                       : std::string_view();
+  // Return substring from start to end
+  return str.substr(start_pos, end_pos - start_pos + 1);
 }
 
 // Greeter class implementation

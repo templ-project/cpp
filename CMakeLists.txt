@@ -52,8 +52,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Base flags for Clang (warnings but not errors for third-party code compatibility)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 
-    # Use libc++ (LLVM's C++ standard library) for true LLVM stack
-    if(NOT WIN32)
+    # Use libc++ on macOS (built-in), libstdc++ on Linux (for gtest compatibility)
+    if(APPLE)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++ -lc++abi")
     endif()

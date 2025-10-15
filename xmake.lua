@@ -33,10 +33,14 @@ end
 -- More explicit Clang enforcement
 if is_plat("windows") then
     set_toolchains("clang-cl")  -- Use clang-cl on Windows
-elseif is_plat("linux", "macosx") then
+elseif is_plat("macosx") then
     set_toolchains("clang")
-    add_cxflags("-stdlib=libc++")  -- Use libc++ explicitly
-    add_ldflags("-stdlib=libc++")
+    add_cxflags("-stdlib=libc++")  -- Use libc++ on macOS (built-in)
+    add_ldflags("-stdlib=libc++", "-lc++abi")
+elseif is_plat("linux") then
+    set_toolchains("clang")
+    -- On Linux, use libstdc++ to match pre-built gtest from xmake packages
+    -- libc++ would require building gtest from source with matching stdlib
 end
 
 -- Validate compiler at configuration time

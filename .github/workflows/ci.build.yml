@@ -1,15 +1,15 @@
-name: CI Build
+name: CI Validate & Build
 
 on:
   workflow_call:
     inputs:
       os:
-        description: 'Operating system to run on'
+        description: "Operating system to run on"
         required: false
         type: string
-        default: 'ubuntu-latest'
+        default: "ubuntu-latest"
       llvm_versions:
-        description: 'LLVM versions to test (JSON array)'
+        description: "LLVM versions to test (JSON array)"
         required: false
         type: string
         # https://releases.llvm.org/
@@ -17,53 +17,136 @@ on:
         # default: '["20.1.7", "19.1.7", "18.1.8", "17.0.5", "16.0.4"]'
         default: '["20"]'
       build_system:
-        description: 'Build system to use (JSON array)'
+        description: "Build system to use (JSON array)"
         required: false
         type: string
         default: '["cmake", "xmake"]'
-        # default: '["cmake"]'
 
 jobs:
+  validate:
+    runs-on: ${{ inputs.os }}
+    strategy:
+      matrix:
+        llvm_version: ${{ fromJSON(inputs.llvm_versions) }}
+        build_system: ${{ fromJSON(inputs.build_system) }}
+    steps:
+      - if: ${{ runner.os == 'macOS' }}
+        name: Install LLVM on macOS
+        run: |
+          brew install llvm@${{ matrix.llvm_version }}
+          echo "PATH=$(brew --prefix llvm@${{ matrix.llvm_version }})/bin;$PATH" >> $GITHUB_ENV
+          echo "LDFLAGS=-L$(brew --prefix llvm@${{ matrix.llvm_version }})/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I$(brew --prefix llvm@${{ matrix.llvm_version }})/include" >> $GITHUB_ENV
+
+      - if: ${{ runner.os != 'macOS' }}
+        uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: ${{ matrix.llvm_version }}
+
+      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Linux' }}
+        run: |
+          sudo apt update && sudo apt install -y cmake
+
+      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'macOS' }}
+        run: |
+          brew install cmake
+
+      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Windows' }}
+        run: |
+          choco install cmake
+
+      - if: ${{ matrix.build_system == 'xmake' }}
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+
+      - uses: astral-sh/setup-uv@v6
+
+      - uses: go-task/setup-task@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test Code Formatting
+        run: task format:check
+
+      - name: Lint Code
+        run: task clean:${{ matrix.build_system }} lint:check CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+
+      - name: Test
+        run: task clean:${{ matrix.build_system }} test CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+
+  duplicate-check:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - uses: astral-sh/setup-uv@v6
+
+      - uses: go-task/setup-task@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run duplicate check
+        run: task duplicate-check
+
   build:
     runs-on: ${{ inputs.os }}
     strategy:
       matrix:
+        llvm_version: ${{ fromJSON(inputs.llvm_versions) }}
         build_system: ${{ fromJSON(inputs.build_system) }}
-        llvm_versions: ${{ fromJSON(inputs.llvm_versions) }}
+    needs: validate
     steps:
-    - uses: ZhongRuoyu/setup-llvm@v0
-      with:
-        llvm-version: ${{ matrix.llvm_versions }}
+      - if: ${{ runner.os == 'macOS' }}
+        name: Install LLVM on macOS
+        run: |
+          brew install llvm@${{ matrix.llvm_version }}
+          echo "PATH=$(brew --prefix llvm@${{ matrix.llvm_version }})/bin;$PATH" >> $GITHUB_ENV
+          echo "LDFLAGS=-L$(brew --prefix llvm@${{ matrix.llvm_version }})/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I$(brew --prefix llvm@${{ matrix.llvm_version }})/include" >> $GITHUB_ENV
 
-    - if: ${{ matrix.build_system == 'cmake' && runner.os == 'macOS' }}
-      run: |
-        brew install cmake
+      - if: ${{ runner.os != 'macOS' }}
+        uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: ${{ matrix.llvm_version }}
 
-    - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Linux' }}
-      run: |
-        sudo apt update && sudo apt install -y cmake
+      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Linux' }}
+        run: |
+          sudo apt update && sudo apt install -y cmake
 
-    - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Windows' }}
-      run: |
-        choco install cmake -y
+      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'macOS' }}
+        run: |
+          brew install cmake
 
-    - if: ${{ matrix.build_system == 'xmake' }}
-      uses: xmake-io/github-action-setup-xmake@v1
-      with:
-        xmake-version: latest
+      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Windows' }}
+        run: |
+          choco install cmake
 
-    - uses: astral-sh/setup-uv@v6
+      - if: ${{ matrix.build_system == 'xmake' }}
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
 
-    - uses: go-task/setup-task@v1
+      - uses: astral-sh/setup-uv@v6
 
-    - name: Test binaries
-      run: |
-        clang++ --version
-        ${{ matrix.build_system }} --version
-        task --version
+      - uses: go-task/setup-task@v1
 
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Build
-      run: task clean:${{ matrix.build_system }} build CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+      - name: Build
+        run: task clean:${{ matrix.build_system }} build CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+
+      - name: Upload build artifacts
+        if: matrix.build_system == 'cmake'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpp-template-${{ runner.os }}-${{ matrix.llvm_versions }}
+          path: |
+            build/src/cpp-template*
+            build/tests/cpp-template-tests*
+          retention-days: 7

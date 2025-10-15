@@ -22,47 +22,57 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
+        ref: ${{ inputs.version_tag }}
         fetch-depth: 0
 
-    - name: Generate changelog
+    - name: Read changelog
       id: changelog
       run: |
-        # Get the previous tag
-        PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
-        if [ -z "$PREV_TAG" ]; then
-          # First release, get all commits
-          COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+        if [ -f CHANGELOG.md ]; then
+          echo "Using generated CHANGELOG.md from bumpalicious"
         else
-          # Get commits since previous tag
-          COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          echo "CHANGELOG.md not found, will use tag as body"
+          echo "Release ${{ inputs.version_tag }}" > CHANGELOG.md
         fi
 
-        # Create changelog
-        echo "## What's Changed" > CHANGELOG.txt
-        echo "" >> CHANGELOG.txt
-        echo "$COMMITS" >> CHANGELOG.txt
+    - name: Create source archive
+      run: |
+        mkdir -p release-assets
 
-        cat CHANGELOG.txt
+        # Create source tarball (excluding build artifacts and git)
+        tar --exclude='.git' \
+            --exclude='build' \
+            --exclude='.xmake' \
+            --exclude='node_modules' \
+            --exclude='.venv' \
+            --exclude='__pycache__' \
+            -czf release-assets/cpp-template-${{ inputs.version_tag }}-source.tar.gz \
+            .
 
-    - name: Download all artifacts
+        echo "Source archive created"
+        ls -lah release-assets/
+
+    - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
         path: artifacts
 
-    - name: Prepare release assets
+    - name: Package binary artifacts
       run: |
         mkdir -p release-assets
 
-        # Package artifacts by platform
+        # Package each platform's binaries
         cd artifacts
-        for dir in */; do
+        for dir in cpp-template-*/; do
           if [ -d "$dir" ]; then
-            tar -czf "../release-assets/${dir%/}.tar.gz" -C "$dir" .
+            PLATFORM_NAME=$(echo "${dir%/}" | sed 's/cpp-template-//')
+            tar -czf "../release-assets/cpp-template-${{ inputs.version_tag }}-${PLATFORM_NAME}.tar.gz" -C "$dir" .
+            echo "Packaged $PLATFORM_NAME"
           fi
         done
         cd ..
 
+        echo "All release assets:"
         ls -lah release-assets/
 
     - name: Create GitHub Release
@@ -70,16 +80,9 @@ jobs:
       with:
         tag_name: ${{ inputs.version_tag }}
         name: Release ${{ inputs.version_tag }}
-        body_path: CHANGELOG.txt
+        body_path: CHANGELOG.md
         draft: false
         prerelease: ${{ inputs.prerelease }}
-        files: |
-          release-assets/*
+        files: release-assets/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload release artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: release-${{ inputs.version_tag }}
-        path: release-assets/

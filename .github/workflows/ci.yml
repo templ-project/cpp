@@ -8,52 +8,45 @@ on:
   workflow_dispatch:
 
 jobs:
-  # # Validation pipeline (format, lint, duplicate-check, test)
-  # validate:
-  #   name: Validate Code
-  #   uses: ./.github/workflows/ci.validate.yml
-  #   with:
-  #     os: ubuntu-latest
-
-  # Build matrix for different platforms and configurations
+  # Validation & Build matrix for different platforms and configurations
   build-linux-release:
     name: Build Linux Release
-    # needs: validate
     uses: ./.github/workflows/ci.build.yml
     with:
       os: ubuntu-latest
 
   build-macos-release:
     name: Build macOS Release
-    # needs: validate
     uses: ./.github/workflows/ci.build.yml
     with:
       os: macos-latest
 
   build-windows-release:
     name: Build Windows Release
-    # needs: validate
     uses: ./.github/workflows/ci.build.yml
     with:
       os: windows-latest
 
-  # # Version bump (only on main branch push or manual trigger)
-  # version:
-  #   name: Bump Version
-  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event.inputs.perform_release == 'true'
-  #   needs: [build-linux-release, build-linux-debug, build-macos-release, build-macos-debug, build-windows-release, build-windows-debug]
-  #   uses: ./.github/workflows/ci.version.yml
-  #   with:
-  #     version_type: ${{ github.event.inputs.version_type || 'patch' }}
+  # Version bump (only on main branch push, uses conventional commits)
+  version:
+    name: Bump Version
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-linux-release, build-macos-release, build-windows-release]
+    uses: ./.github/workflows/ci.version.yml
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      pr_auto_merge: false
 
-  # # Release (only on main branch push or manual trigger)
-  # release:
-  #   name: Create Release
-  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event.inputs.perform_release == 'true'
-  #   needs: version
-  #   uses: ./.github/workflows/ci.release.yml
-  #   with:
-  #     version_tag: ${{ needs.version.outputs.version_tag }}
-  #     prerelease: false
-  #   permissions:
-  #     contents: write
+  # Release (only on main branch push after version bump)
+  release:
+    name: Create Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [version]
+    uses: ./.github/workflows/ci.release.yml
+    permissions:
+      contents: write
+    with:
+      version_tag: ${{ needs.version.outputs.version_tag }}
+      prerelease: false
