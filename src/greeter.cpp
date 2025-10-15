@@ -12,22 +12,23 @@
 
 namespace cpp_template {
 
-std::string Trim(const std::string& str) {
-  const auto start =
+std::string_view Trim(std::string_view str) noexcept {
+  const auto* const start =
       std::find_if_not(str.begin(), str.end(),
                        [](unsigned char ch) { return std::isspace(ch); });
 
-  const auto end =
+  const auto* const end =
       std::find_if_not(str.rbegin(), str.rend(), [](unsigned char ch) {
         return std::isspace(ch);
       }).base();
 
-  return (start < end) ? std::string(start, end) : std::string();
+  return (start < end) ? std::string_view(&*start, std::distance(start, end))
+                       : std::string_view();
 }
 
 // Greeter class implementation
 std::string Greeter::Hello(const std::string& name) {
-  const std::string trimmed_name = Trim(name);
+  const std::string trimmed_name{Trim(name)};
 
   if (trimmed_name.empty()) {
     throw InvalidNameError("Name must be a non-empty string");
@@ -37,7 +38,7 @@ std::string Greeter::Hello(const std::string& name) {
 }
 
 std::string Greeter::Goodbye(const std::string& name) {
-  const std::string trimmed_name = Trim(name);
+  const std::string trimmed_name{Trim(name)};
 
   if (trimmed_name.empty()) {
     throw InvalidNameError("Name must be a non-empty string");

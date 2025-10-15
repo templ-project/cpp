@@ -24,24 +24,58 @@ That's it! You now have a fully configured C++ project with automatic dependency
 ## What's Included
 
 - ✅ **C++20** - Modern C++ with Google C++ Style Guide
-- ✅ **Google Test** - Unit testing framework (auto-fetched)
-- ✅ **CMake + XMake** - Dual build system with built-in dependency management
-- ✅ **Clang-format + Clang-tidy** - Code formatting and linting
-- ✅ **Taskfile** - Modern Task Runner written in Go
+- ✅ **Clang/LLVM Required** - Strict Clang-only build with libc++ on Linux/macOS
+- ✅ **Google Test** - Unit testing framework (auto-fetched via CMake FetchContent)
+- ✅ **CMake + XMake** - Dual build system support with automatic dependency management
+- ✅ **Clang-format + Clang-tidy** - Automatic code formatting and linting
+- ✅ **Python + UV Automation** - All formatting, linting, and hooks managed via Python scripts
+- ✅ **Address Sanitizer** - Memory safety checks in debug builds (all platforms)
+- ✅ **Taskfile** - Modern task automation (build, test, format, lint, validate)
+- ✅ **Pre-commit Hooks** - Automated quality checks before commits
 - ✅ **Doxygen** - API documentation generation
-- ✅ **CI/CD** - GitHub Actions workflows included
-- ✅ **No external package managers** - CMake FetchContent & XMake handle dependencies
+- ✅ **CI/CD** - GitHub Actions workflows for Linux, macOS, and Windows
+- ✅ **JSCPD** - Duplicate code detection
 
 ## Common Commands
 
+### Essential Tasks
+
 ```bash
-task build             # Build the project
-task test              # Run tests
+task build             # Build the project (default: CMake)
+task test              # Run all tests (unit + integration)
 task run               # Run the application
+task clean             # Clean all build artifacts
+```
+
+### Build System Selection
+
+```bash
+task build:cmake       # Build using CMake
+task build:xmake       # Build using XMake
+task test:cmake        # Run tests with CMake/CTest
+task test:xmake        # Run tests with XMake
+```
+
+### Code Quality
+
+```bash
 task format            # Format code with clang-format
+task format:check      # Check formatting without changes
 task lint              # Lint and auto-fix with clang-tidy
-task validate          # Run all quality checks
+task lint:check        # Lint without auto-fix
+task duplicate-check   # Check for duplicate code (JSCPD)
+task validate          # Run full CI pipeline (format, lint, test)
+```
+
+### Development Tools
+
+```bash
 task docs              # Generate Doxygen documentation
+task hooks:install     # Install git pre-commit hooks
+task debug             # Run with GDB debugger
+task valgrind          # Run with Valgrind memory checker
+task test:coverage     # Run tests with coverage report
+task test:watch        # Watch mode for tests
 ```
 
 ## Project Structure
@@ -53,64 +87,128 @@ src/
 └── CMakeLists.txt     # CMake source configuration
 
 include/
-└── greeter.hpp        # Example module header
+└── greeter.hpp        # Example module header (with string_view optimizations)
 
 tests/
-├── test_greeter.cpp   # Google Test unit tests
-└── test_simple.cpp    # Simple fallback tests
+├── unit/
+│   └── test_greeter.cpp    # Google Test unit tests
+├── integration/
+│   └── test_simple.cpp     # Simple no-dependency tests
+└── CMakeLists.txt          # Test configuration
+
+scripts/
+├── format.py          # Code formatting automation
+├── lint.py            # Linting automation
+└── which.py           # Tool detection utility
 ```
 
-## Documentation
+## Additional Resources
 
-- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
-- **[Usage Guide](USAGE.md)** - Detailed usage instructions
-- **[Architecture](ARCHITECTURE.md)** - Design decisions
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to this project
+- **[Changelog](CHANGELOG.md)** - Version history and changes
 
 ## Requirements
 
-- C++20 compatible compiler (Clang recommended)
-- CMake 3.20+
-- Python 3.11+ (for bootstrap script only)
-- Task (optional, for task automation)
+### Required
+
+- **Clang/LLVM** - This project requires Clang (versions 16-20 supported)
+  - Ubuntu/Debian: `sudo apt install clang libc++-dev libc++abi-dev`
+  - macOS: `brew install llvm` (or use built-in Clang)
+  - Windows: Download from [LLVM releases](https://releases.llvm.org/)
+- **CMake 3.20+** - For CMake build system
+- **GDB** - For debugging (`task debug`)
+- **Node.js** - For JSCPD duplicate detection (auto-installed via npm)
+- **Python 3.11+** - For scripts and bootstrap
+- **Task** - Task automation (`brew install go-task` or see [taskfile.dev](https://taskfile.dev))
+- **UV** - Python package manager (`pip install uv`)
+- **Valgrind** - For memory profiling (`task valgrind`, Linux/macOS only)
+
+### Optional
+
+- **XMake** - Alternative build system (`brew install xmake` or see [xmake.io](https://xmake.io))
+- **Doxygen** - For documentation generation (`task docs`)
 
 ## Configuration
 
-All configuration follows Google C++ Style Guide:
+All configuration follows Google C++ Style Guide with modern C++ best practices:
 
-- **Clang-format**: `.clang-format` (Google style)
-- **Clang-tidy**: `.clang-tidy` (comprehensive checks)
-- **CMake**: `CMakeLists.txt` (modern CMake 3.20+)
-- **Doxygen**: `Doxyfile` (API documentation)
-- **Duplicate Check**: `.jscpdrc` (code duplication detection)
+### Build Configuration
 
-## Quality Checks
+- **CMake**: `CMakeLists.txt` - Modern CMake 3.20+ with strict Clang enforcement
+  - Uses CMake FetchContent for Google Test
+  - Enforces libc++ on Linux/macOS for full LLVM stack
+  - Address Sanitizer enabled in debug builds (all platforms)
+- **XMake**: `xmake.lua` - Alternative build system with same requirements
+- **Taskfile**: `Taskfile.yml` - Task automation and workflow management
 
-Pre-commit hooks automatically check:
+### Quality Tools
 
-- Code formatting (clang-format)
-- Linting (clang-tidy)
+- **Clang-format**: `.clang-format` - Google style, 80-column limit
+- **Clang-tidy**: `.clang-tidy` - Comprehensive checks (bugprone, modernize, performance)
+- **Pre-commit**: `.pre-commit-config.yaml` - Git hooks for automated checks
+- **JSCPD**: `.jscpd.json` - Code duplication detection and badge generation
 
-Pre-push hooks verify:
+### API Documentation
 
-- Unit tests (Google Test)
-- Duplicate code detection
-- Build success
+- **Doxygen**: `Doxyfile` - API documentation with full class/function docs
+- **Markdown**: `.markdownlint.json` - Markdown linting configuration
+
+## Automated Quality Checks
+
+### Pre-commit Hooks (run on every commit)
+
+- ✅ **Code Formatting** - Auto-fix with clang-format
+- ✅ **Linting** - Auto-fix with clang-tidy
+- ✅ **Duplicate Detection** - Check for code duplication with JSCPD
+- ✅ **Markdown Validation** - Auto-fix markdown files
+- ✅ **File Validation** - Check YAML, JSON, TOML, trailing whitespace
+
+### Pre-push Hooks (run before pushing)
+
+- ✅ **Full Test Suite** - Unit tests + integration tests
+- ✅ **Build Verification** - Ensure project builds successfully
+
+Install hooks with: `task hooks:install`
 
 ## Using as a Library
 
 ```cpp
-// Include the header
 #include "greeter.hpp"
 
 // Use the convenience functions
 std::string msg = cpp_template::Hello("World");
-std::cout << msg << std::endl;  // "Hello, World!"
+std::cout << msg << '\n';  // "Hello, World!"
 
-// Or use the Greeter class
-cpp_template::Greeter greeter;
-std::string msg2 = greeter.Hello("C++");
-std::cout << msg2 << std::endl;  // "Hello, C++!"
+// Or use the Greeter class (static methods)
+std::string msg2 = cpp_template::Greeter::Hello("C++");
+std::cout << msg2 << '\n';  // "Hello, C++!"
+
+// String trimming with zero-copy string_view
+std::string_view trimmed = cpp_template::Trim("  spaces  ");
+std::cout << trimmed << '\n';  // "spaces"
 ```
+
+## Key Features
+
+### Performance Optimizations
+
+- **Zero-copy string operations** - Uses `std::string_view` for efficient string handling
+- **Move semantics** - Proper use of move constructors and assignments
+- **Compile-time optimizations** - Constexpr where applicable
+
+### Safety Features
+
+- **Address Sanitizer** - Automatic memory error detection in debug builds
+- **Undefined Behavior Sanitizer** - Catches UB on Linux/macOS
+- **Exception safety** - All operations are exception-safe with strong guarantees
+- **Custom exceptions** - Clear error types (`InvalidNameError`)
+
+### Modern C++20 Features
+
+- **Concepts** (ready for use)
+- **Ranges** (ready for use)
+- **String views** - Already in use for performance
+- **Designated initializers** (ready for use)
 
 ## License
 

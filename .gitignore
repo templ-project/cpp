@@ -12,6 +12,9 @@ package-lock.json
 package.json
 .jscpd/html/
 
+# Taskfile
+.task/
+
 # Build Folders
 /build
 /Release

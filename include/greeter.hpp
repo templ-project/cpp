@@ -12,6 +12,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace cpp_template {
 
@@ -110,10 +111,12 @@ std::string Goodbye(const std::string& name);
 /**
  * @brief Utility function to trim whitespace from string
  *
+ * Uses string_view for zero-copy performance (C++17).
+ *
  * @param str The string to trim
- * @return std::string The trimmed string
+ * @return std::string_view A view of the trimmed string
  */
-std::string Trim(const std::string& str);
+std::string_view Trim(std::string_view str) noexcept;
 
 }  // namespace cpp_template
 

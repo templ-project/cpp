@@ -17,15 +17,34 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# Force Clang as the default compiler if not explicitly set
-if(NOT DEFINED CMAKE_CXX_COMPILER)
-    find_program(CLANG_CXX_EXECUTABLE NAMES clang++ clang++-18 clang++-17 clang++-16)
+# Force Clang - this project requires Clang/LLVM
+if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Try to find Clang if not already set
+    find_program(CLANG_CXX_EXECUTABLE
+        NAMES clang++ clang++-20 clang++-19 clang++-18 clang++-17 clang++-16
+        DOC "Clang C++ compiler"
+    )
+
     if(CLANG_CXX_EXECUTABLE)
         set(CMAKE_CXX_COMPILER ${CLANG_CXX_EXECUTABLE})
         message(STATUS "Using Clang: ${CMAKE_CXX_COMPILER}")
     else()
-        message(WARNING "Clang not found, falling back to system default compiler")
+        message(FATAL_ERROR
+            "Clang/LLVM is required for this project but was not found.\n"
+            "Please install Clang and set CMAKE_CXX_COMPILER to clang++.\n"
+            "Ubuntu/Debian: sudo apt install clang\n"
+            "macOS: brew install llvm\n"
+            "Windows: Download from https://releases.llvm.org/"
+        )
     endif()
+endif()
+
+# Verify we're actually using Clang after configuration
+if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR
+        "CMAKE_CXX_COMPILER_ID is '${CMAKE_CXX_COMPILER_ID}' but this project requires Clang.\n"
+        "Set CMAKE_CXX_COMPILER to clang++ or use: cmake -DCMAKE_CXX_COMPILER=clang++ ..."
+    )
 endif()
 
 # Compiler-specific options
@@ -33,13 +52,20 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Base flags for Clang (warnings but not errors for third-party code compatibility)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 
-    # Platform-specific flags
+    # Use libc++ (LLVM's C++ standard library) for true LLVM stack
+    if(NOT WIN32)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++ -lc++abi")
+    endif()
+
+    # Debug flags with sanitizers (works on all platforms with Clang)
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
     if(WIN32)
-        # Windows-specific: disable problematic warnings for compatibility
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-language-extension-token")
+        # Windows requires different sanitizer syntax
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
     else()
-        # Linux/macOS: enable sanitizers in debug mode
-        set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fsanitize=address,undefined")
+        # Linux/macOS: enable both address and undefined behavior sanitizers
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address,undefined")
     endif()
 
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")

@@ -129,6 +129,8 @@ tasks:
 
         npx jscpd src/ include/
 
+        git add .jscpd/jscpd-badge.svg 2>/dev/null || true
+
   format:
     desc: "Format code using {{.CPP_FORMATTER}}"
     deps:
@@ -265,13 +267,12 @@ tasks:
   validate:
     desc: "Run CI pipeline (format, lint, duplicate-check, test)"
     cmds:
-    - task: clean:cmake
-    - task: clean:xmake
-    - task: build
+    - task: clean
     - task: "format:check"
-    - task: "lint:check"
     - task: "duplicate-check"
+    - task: "lint:check"
     - task: "test"
+    - task: "build"
 
   valgrind:
     desc: "Run application with Valgrind"
@@ -298,8 +299,14 @@ tasks:
     desc: "Create or update Python virtual environment in .venv"
     cmds:
     - cmd: |
-        [ -d ./.venv ] || { uv venv; ./.venv/bin/python --version }
-      platforms: [ darwin, linux ]
+        if [ ! -d ./.venv ]; then
+          uv venv
+          ./.venv/bin/python --version
+        fi
+      platforms: [darwin, linux]
     - cmd: |
-        if [ ! -d ./.venv ]; then uv venv; ./.venv/Scripts/python --version; fi
-      platforms: [ windows ]
+        if [ ! -d ./.venv ]; then
+          uv venv
+          ./.venv/Scripts/python --version
+        fi
+      platforms: [windows]
