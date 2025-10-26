@@ -58,6 +58,7 @@ add_cxflags("-Wall", "-Wextra", "-Wpedantic")
 add_includedirs("include")
 
 -- Add packages
+-- Note: SDK flags for macOS are set via environment variables in .mise.toml
 add_requires("gtest")
 
 -- Target: main executable

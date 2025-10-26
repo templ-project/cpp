@@ -8,60 +8,14 @@ on:
         required: false
         type: string
         default: "ubuntu-latest"
-      llvm_versions:
-        description: "LLVM versions to test (JSON array)"
-        required: false
-        type: string
-        # https://releases.llvm.org/
-        # https://github.com/KyleMayes/install-llvm-action/blob/master/assets.json
-        # default: '["20.1.7", "19.1.7", "18.1.8", "17.0.5", "16.0.4"]'
-        default: '["20"]'
-      build_system:
-        description: "Build system to use (JSON array)"
-        required: false
-        type: string
-        default: '["cmake", "xmake"]'
 
 jobs:
   validate:
     runs-on: ${{ inputs.os }}
     strategy:
       matrix:
-        llvm_version: ${{ fromJSON(inputs.llvm_versions) }}
         build_system: ${{ fromJSON(inputs.build_system) }}
     steps:
-      - if: ${{ runner.os == 'macOS' }}
-        name: Install LLVM on macOS
-        run: |
-          brew install llvm@${{ matrix.llvm_version }}
-          echo "PATH=$(brew --prefix llvm@${{ matrix.llvm_version }})/bin;$PATH" >> $GITHUB_ENV
-          echo "LDFLAGS=-L$(brew --prefix llvm@${{ matrix.llvm_version }})/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I$(brew --prefix llvm@${{ matrix.llvm_version }})/include" >> $GITHUB_ENV
-
-      - if: ${{ runner.os != 'macOS' }}
-        uses: ZhongRuoyu/setup-llvm@v0
-        with:
-          llvm-version: ${{ matrix.llvm_version }}
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Linux' }}
-        run: |
-          sudo apt update && sudo apt install -y cmake
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'macOS' }}
-        run: |
-          brew install cmake
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Windows' }}
-        run: |
-          choco install cmake
-
-      - if: ${{ matrix.build_system == 'xmake' }}
-        uses: xmake-io/github-action-setup-xmake@v1
-        with:
-          xmake-version: latest
-
-      - uses: astral-sh/setup-uv@v6
-
       - uses: go-task/setup-task@v1
 
       - name: Checkout code
@@ -101,52 +55,20 @@ jobs:
         build_system: ${{ fromJSON(inputs.build_system) }}
     needs: validate
     steps:
-      - if: ${{ runner.os == 'macOS' }}
-        name: Install LLVM on macOS
-        run: |
-          brew install llvm@${{ matrix.llvm_version }}
-          echo "PATH=$(brew --prefix llvm@${{ matrix.llvm_version }})/bin;$PATH" >> $GITHUB_ENV
-          echo "LDFLAGS=-L$(brew --prefix llvm@${{ matrix.llvm_version }})/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I$(brew --prefix llvm@${{ matrix.llvm_version }})/include" >> $GITHUB_ENV
-
-      - if: ${{ runner.os != 'macOS' }}
-        uses: ZhongRuoyu/setup-llvm@v0
-        with:
-          llvm-version: ${{ matrix.llvm_version }}
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Linux' }}
-        run: |
-          sudo apt update && sudo apt install -y cmake
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'macOS' }}
-        run: |
-          brew install cmake
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Windows' }}
-        run: |
-          choco install cmake
-
-      - if: ${{ matrix.build_system == 'xmake' }}
-        uses: xmake-io/github-action-setup-xmake@v1
-        with:
-          xmake-version: latest
-
-      - uses: astral-sh/setup-uv@v6
-
       - uses: go-task/setup-task@v1
+
+      - if: ${{ runner.os != 'Windows' }}
+        run: curl https://mise.run | sh
+
+      - if: ${{ runner.os == 'Windows' }}
+        run: choco install mise -y --force
 
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build
-        run: task clean:${{ matrix.build_system }} build CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+      - name: Install Dependencies
+        run: mise install
 
-      - name: Upload build artifacts
-        if: matrix.build_system == 'cmake'
-        uses: actions/upload-artifact@v4
-        with:
-          name: cpp-template-${{ runner.os }}-${{ matrix.llvm_versions }}
-          path: |
-            build/src/cpp-template*
-            build/tests/cpp-template-tests*
-          retention-days: 7
+      - name: Test Depdendencies
+        run: |
+          mise exec -- xmake --version

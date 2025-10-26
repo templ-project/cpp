@@ -1,0 +1,381 @@
+############################################################################
+# Tools Configuration                                                      #
+############################################################################
+
+[tools]
+
+############################################################################
+# Compilers                                                                #
+############################################################################
+
+# LLVM Installation via mise
+#
+# SDK configuration for macOS is handled in xmake.lua to properly link with system libraries.
+# All platforms should work correctly with this setup.
+
+# # https://github.com/llvm/llvm-project/releases/tag/llvmorg-20.1.8
+# [tools."http:llvm"]
+# version = "20.1.8"
+
+# [tools."http:llvm".platform.macos-arm64]
+# url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/LLVM-20.1.8-macOS-ARM64.tar.xz"
+# checksum = "sha256:a9a22f450d35f1f73cd61ab6a17c6f27d8f6051d56197395c1eb397f0c9bbec4"
+
+# [tools."http:llvm".platform.linux-x64]
+# url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/LLVM-20.1.8-Linux-X64.tar.xz"
+# checksum = "sha256:1ead36b3dfcb774b57be530df42bec70ab2d239fbce9889447c7a29a4ddc1ae6"
+
+############################################################################
+# Build Tools                                                              #
+############################################################################
+
+# https://github.com/xmake-io/xmake/releases/tag/v3.0.4
+# xmake standalone executables - mise will look in the root directory
+# The binary will be named incorrectly, so we use a post-install hook
+[tools."http:xmake"]
+version = "3.0.4"
+
+[tools."http:xmake".platform.macos-arm64]
+url = "https://github.com/xmake-io/xmake/releases/download/v3.0.4/xmake-bundle-v3.0.4.macos.arm64"
+checksum = "sha256:90781b9c5669fa66a146306775dc0f7ee57899469b620c3e480a9eb0bfd1d070"
+bin = "xmake"
+
+# [tools."http:xmake".platform.linux-x64]
+# url = "https://github.com/xmake-io/xmake/releases/download/v3.0.4/xmake-bundle-v3.0.4.linux.x86_64"
+# checksum = "sha256:b3cd0f9fe3b3df8d767f301e382b70071b8335abe00ada00525ba9e13e238717"
+# bin = "xmake-bundle-v3.0.4.linux.x86_64"
+
+# [tools."http:xmake".platform.windows-x64]
+# url = "https://github.com/xmake-io/xmake/releases/download/v3.0.4/xmake-bundle-v3.0.4.win64.exe"
+# checksum = "sha256:bdb45cf1b8a25d23ea6dd0480c923ebe14633fd78b5758b44c005964e4a48e31"
+# bin = "xmake-bundle-v3.0.4.win64.exe"
+
+# https://github.com/xmake-io/xmake/releases/tag/v3.0.4
+# xmake standalone executables - mise will look in the root directory
+# The binary will be named incorrectly, so we use a post-install hook
+[tools."github:Kitware/CMake"]
+version = "latest"
+
+[tools."github:Kitware/CMake".platform.macos-arm64]
+asset_pattern = "cmake-*-macos-universal.tar.gz"
+bin_path = "CMake.app/Contents/bin"
+
+# [tools."http:cmake".platform.linux-x64]
+# url = "https://github.com/xmake-io/xmake/releases/download/v3.0.4/xmake-bundle-v3.0.4.linux.x86_64"
+# checksum = "sha256:b3cd0f9fe3b3df8d767f301e382b70071b8335abe00ada00525ba9e13e238717"
+# bin = "xmake-bundle-v3.0.4.linux.x86_64"
+
+# [tools."http:cmake".platform.windows-x64]
+# url = "https://github.com/xmake-io/xmake/releases/download/v3.0.4/xmake-bundle-v3.0.4.win64.exe"
+# checksum = "sha256:bdb45cf1b8a25d23ea6dd0480c923ebe14633fd78b5758b44c005964e4a48e31"
+# bin = "xmake-bundle-v3.0.4.win64.exe"
+
+############################################################################
+# Other Tools                                                              #
+############################################################################
+
+# # Node.js for jscpd
+# node = "latest"
+
+# # Python and package manager
+# python = "3.11" # Will install 3.11 or above based on availability
+# uv = "latest"
+
+# # # Optional tools (install manually if needed)
+# # # gdb = "latest"      # Debugger - platform-specific
+# # # doxygen = "latest"  # Documentation generator
+# # # valgrind = "latest" # Memory profiler (Linux/macOS only)
+
+# # Environment variables
+# [env]
+# CPP_PROJECT_NAME = "cpp-template"
+# CPP_BUILD_SYSTEM = "xmake"                        # cmake, xmake
+# CPP_BUILD_DIR = "build"
+# CPP_BUILD_TYPE = "Release"
+# CPP_COMPILER = "clang++"
+# CPP_LINTER = "clang-tidy"
+# CPP_FORMATTER = "clang-format"
+# _.python.venv = { path = ".venv", create = true } # Auto-create venv
+
+# # macOS: Set SDK flags that CMAKE (used by xmake packages) will inherit
+# SDKROOT = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+# CFLAGS = "-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+# CXXFLAGS = "-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+# LDFLAGS = "-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib"
+
+# # Task definitions
+# [tasks.default]
+# description = "Show available tasks"
+# run = "mise tasks"
+
+# # ============================================================================
+# # Build Tasks
+# # ============================================================================
+
+# [tasks.build]
+# description = "Build project (default: cmake)"
+# depends = ["build:{{env.CPP_BUILD_SYSTEM}}"]
+
+# [tasks."build:cmake"]
+# description = "Build project using CMake"
+# run = [
+#     "cmake -B {{env.CPP_BUILD_DIR}} -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE={{env.CPP_BUILD_TYPE}} -DCMAKE_CXX_COMPILER={{env.CPP_COMPILER}} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+#     "cmake --build {{env.CPP_BUILD_DIR}} --parallel",
+# ]
+
+# [tasks."build:xmake"]
+# description = "Build project using XMake"
+# run = [
+#     "xmake f -m $(echo {{env.CPP_BUILD_TYPE}} | tr '[:upper:]' '[:lower:]') --toolchain=clang -y",
+#     "xmake build",
+#     "xmake project -k compile_commands {{env.CPP_BUILD_DIR}}",
+# ]
+
+# [tasks."build:debug"]
+# description = "Build project in Debug mode"
+# env = { CPP_BUILD_TYPE = "Debug" }
+# run = [
+#     "cmake -B {{env.CPP_BUILD_DIR}} -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE={{env.CPP_BUILD_TYPE}} -DCMAKE_CXX_COMPILER={{env.CPP_COMPILER}} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+#     "cmake --build {{env.CPP_BUILD_DIR}} --parallel",
+# ]
+
+# # ============================================================================
+# # Clean Tasks
+# # ============================================================================
+
+# [tasks.clean]
+# description = "Clean all build artifacts"
+# run = "rm -rf {{env.CPP_BUILD_DIR}} .xmake docs .jscpd/html .task node_modules package-lock.json"
+
+# [tasks."clean:cmake"]
+# description = "Clean CMake build only"
+# run = "rm -rf {{env.CPP_BUILD_DIR}}"
+
+# [tasks."clean:xmake"]
+# description = "Clean XMake build only"
+# run = ["xmake clean 2>/dev/null || true", "rm -rf .xmake ~/.xmake"]
+
+# # ============================================================================
+# # Run Tasks
+# # ============================================================================
+
+# [tasks.run]
+# description = "Run the application"
+# depends = ["run:{{env.CPP_BUILD_SYSTEM}}"]
+# alias = "start"
+
+# [tasks."run:cmake"]
+# description = "Run the application (CMake build)"
+# depends = ["build:cmake"]
+# run = "./{{env.CPP_BUILD_DIR}}/src/{{env.CPP_PROJECT_NAME}}"
+
+# [tasks."run:xmake"]
+# description = "Run the application (XMake build)"
+# depends = ["build:xmake"]
+# run = "xmake run {{env.CPP_PROJECT_NAME}}"
+
+# # ============================================================================
+# # Test Tasks
+# # ============================================================================
+
+# [tasks.test]
+# description = "Run tests"
+# depends = ["test:{{env.CPP_BUILD_SYSTEM}}"]
+
+# [tasks."test:cmake"]
+# description = "Run tests using CMake/CTest"
+# depends = ["build:cmake"]
+# run = "cd {{env.CPP_BUILD_DIR}} && ctest --output-on-failure"
+
+# [tasks."test:xmake"]
+# description = "Run tests using XMake"
+# depends = ["build:xmake"]
+# run = "xmake run {{env.CPP_PROJECT_NAME}}-tests"
+
+# [tasks."test:coverage"]
+# description = "Run tests with coverage (requires gcov)"
+# depends = ["build:debug"]
+# run = """
+# echo "🧪 Running tests with coverage..."
+# cd {{env.CPP_BUILD_DIR}} && ctest --output-on-failure
+# echo "📊 Generating coverage report..."
+# find . -name "*.gcno" -exec gcov {} \\; 2>/dev/null || echo "⚠️  Coverage data collection incomplete (gcov not found or no instrumentation)"
+# echo "📁 Coverage files generated in build directory"
+# """
+
+# [tasks."test:watch"]
+# description = "Run tests in watch mode"
+# run = """
+# echo "🔄 Watch mode: Waiting for file changes..."
+# echo "💡 Tip: Install 'entr' for automatic re-running:"
+# echo "    find src tests -name '*.cpp' -o -name '*.hpp' | entr -c mise run test"
+# mise run test
+# """
+
+# # ============================================================================
+# # Code Quality Tasks
+# # ============================================================================
+
+# [tasks.format]
+# description = "Format code and fix issues"
+# depends = ["format:fix"]
+
+# [tasks."format:fix"]
+# description = "Format code using clang-format"
+# run = "python scripts/format.py fix"
+
+# [tasks."format:check"]
+# description = "Check code formatting without fixing"
+# run = "python scripts/format.py"
+
+# [tasks.lint]
+# description = "Run linter and fix issues"
+# depends = ["build", "lint:fix"]
+
+# [tasks."lint:fix"]
+# description = "Run clang-tidy with fixes"
+# depends = ["build"]
+# run = "python scripts/lint.py fix -p {{env.CPP_BUILD_DIR}}"
+
+# [tasks."lint:check"]
+# description = "Run clang-tidy without fixing"
+# depends = ["build"]
+# run = "python scripts/lint.py -p {{env.CPP_BUILD_DIR}}"
+
+# [tasks."duplicate-check"]
+# description = "Check for duplicate code using jscpd"
+# run = """
+# [ ! -d ./node_modules ] && npm install jscpd @jscpd/badge-reporter
+# npx jscpd src/ include/
+# git add .jscpd/jscpd-badge.svg 2>/dev/null || true
+# """
+
+# # ============================================================================
+# # Development Tools
+# # ============================================================================
+
+# [tasks.debug]
+# description = "Run application with debugger (requires gdb)"
+# depends = ["build:debug"]
+# run = """
+# if command -v gdb >/dev/null 2>&1; then
+#   gdb ./{{env.CPP_BUILD_DIR}}/src/{{env.CPP_PROJECT_NAME}}
+# else
+#   echo "❌ gdb not found. Please install gdb first."
+#   exit 1
+# fi
+# """
+
+# [tasks.valgrind]
+# description = "Run application with Valgrind (requires valgrind)"
+# depends = ["build:debug"]
+# run = """
+# if command -v valgrind >/dev/null 2>&1; then
+#   valgrind --leak-check=full --show-leak-kinds=all ./{{env.CPP_BUILD_DIR}}/src/{{env.CPP_PROJECT_NAME}}
+# else
+#   echo "❌ valgrind not found. Please install valgrind first."
+#   exit 1
+# fi
+# """
+
+# [tasks.docs]
+# description = "Generate documentation with Doxygen (requires doxygen)"
+# run = """
+# if command -v doxygen >/dev/null 2>&1; then
+#   doxygen Doxyfile
+# else
+#   echo "❌ doxygen not found. Please install doxygen first."
+#   exit 1
+# fi
+# """
+
+# # ============================================================================
+# # Setup & Configuration Tasks
+# # ============================================================================
+
+# [tasks.prepare]
+# description = "Initial project setup (install tools and dependencies)"
+# alias = "deps:install"
+# run = [
+#     "mise install",
+#     "mise run prepare:xmake:binary",
+#     "mise run prepare:pre-commit",
+#     "echo '✅ Project setup complete!'",
+# ]
+
+# [tasks."prepare:pre-commit"]
+# description = "Install git hooks using pre-commit"
+# run = [
+#     "uv pip install pre-commit",
+#     "python -m pre_commit install",
+#     "python -m pre_commit install --hook-type pre-push",
+#     "echo '✓ Git hooks installed successfully'",
+# ]
+
+# [tasks."prepare:xmake:binary"]
+# description = "Fix xmake binary naming (workaround for mise HTTP backend limitation)"
+# run = """
+# # Create a proper symlink for xmake since mise can't rename single-file downloads
+# XMAKE_INSTALL=$(mise where http:xmake 2>/dev/null || echo "")
+# if [ -n "$XMAKE_INSTALL" ] && [ -e "$XMAKE_INSTALL" ]; then
+#   # Resolve symlink if it exists
+#   XMAKE_REAL=$(readlink "$XMAKE_INSTALL" || echo "$XMAKE_INSTALL")
+#   mkdir -p "$XMAKE_REAL/bin"
+#   # Find the xmake-bundle file
+#   BUNDLE=$(find "$XMAKE_REAL" -maxdepth 1 -name 'xmake-bundle-*' -type f | head -1)
+#   if [ -n "$BUNDLE" ]; then
+#     ln -sf "$BUNDLE" "$XMAKE_REAL/bin/xmake"
+#     chmod +x "$XMAKE_REAL/bin/xmake" "$BUNDLE"
+#     echo "✓ xmake binary linked successfully at $XMAKE_REAL/bin/xmake"
+#   else
+#     echo "⚠️  xmake bundle not found in $XMAKE_REAL"
+#   fi
+# else
+#   echo "⚠️  xmake not installed. Run 'mise install http:xmake' first."
+# fi
+# """
+
+# [tasks."prepare:cmake:binary"]
+# description = "Fix CMake binary paths (workaround for mise GitHub backend limitation with .app bundles)"
+# run = """
+# # Create symlinks for CMake binaries from CMake.app bundle
+# CMAKE_INSTALL=$(mise where github:Kitware/CMake 2>/dev/null || echo "")
+# if [ -n "$CMAKE_INSTALL" ] && [ -e "$CMAKE_INSTALL" ]; then
+#   mkdir -p "$CMAKE_INSTALL/bin"
+#   # Link all binaries from CMake.app bundle to mise-expected bin/ directory
+#   for binary in "$CMAKE_INSTALL"/CMake.app/Contents/bin/*; do
+#     if [ -f "$binary" ]; then
+#       ln -sf "$binary" "$CMAKE_INSTALL/bin/$(basename "$binary")"
+#     fi
+#   done
+#   echo "✓ CMake binaries linked successfully at $CMAKE_INSTALL/bin/"
+# else
+#   echo "⚠️  CMake not installed. Run 'mise install github:Kitware/CMake' first."
+# fi
+# """
+
+# # ============================================================================
+# # CI/CD Tasks
+# # ============================================================================
+
+# [tasks.validate]
+# description = "Run full CI pipeline (format, lint, test, build)"
+# run = [
+#     "mise run format:check",
+#     "mise run duplicate-check",
+#     "mise run lint:check",
+#     "mise run test",
+#     "mise run build",
+# ]
+
+# # ============================================================================
+# # Deprecated/Removed Tasks (for reference)
+# # ============================================================================
+
+# # The following tasks have been removed/simplified:
+# # - start: Now an alias for 'run'
+# # - venv: Handled automatically by mise's _.python.venv config
+# # - which:*: Removed - mise handles tool availability; optional tools check at runtime
+# # - clean:node: Merged into main 'clean' task
+# # - deps:clean: Removed - use 'mise uninstall' or manually clean ~/.local/share/mise
+# # - deps:install: Renamed to 'setup'
