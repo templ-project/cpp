@@ -1,0 +1,23 @@
+# Test BUILD file for cpp-template project
+
+# Unit tests using Google Test (Bzlmod naming)
+cc_test(
+    name = "cpp-template-tests",
+    size = "small",
+    srcs = ["unit/test_greeter.cpp"],
+    deps = [
+        "//:greeter_lib",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# Integration tests (simple, no external dependencies)
+cc_test(
+    name = "cpp-template-tests-simple",
+    size = "small",
+    srcs = [
+        "integration/test_simple.cpp",
+    ],
+    deps = ["//:greeter_lib"],
+)

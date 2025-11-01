@@ -1,0 +1,17 @@
+# Main BUILD file for cpp-template project
+
+# Library containing the greeter implementation
+cc_library(
+    name = "greeter_lib",
+    srcs = ["src/greeter.cpp"],
+    hdrs = ["include/greeter.hpp"],
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+)
+
+# Main executable
+cc_binary(
+    name = "cpp-template",
+    srcs = ["src/main.cpp"],
+    deps = [":greeter_lib"],
+)

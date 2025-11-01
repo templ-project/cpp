@@ -3,8 +3,18 @@
 specs
 .specs
 
+# Env
+.env*
+!.env.example
+
 # Bootstrap files
 _install/__pycache__/
+
+# Python
+.venv
+*.egg-info/
+dist/
+*.egg
 
 # Node modules
 node_modules/
@@ -12,7 +22,8 @@ package-lock.json
 package.json
 .jscpd/html/
 
-# Taskfile
+# Cache folders
+.cache/
 .task/
 
 # Build Folders
@@ -23,10 +34,13 @@ package.json
 /lib
 
 # Generated Documentation
-/docs
+/docs-html/
+/site/
 
 # Build Systems
 .xmake
+bazel-*
+BUILD.xmake
 
 # Prerequisites
 *.d
@@ -67,5 +81,9 @@ package.json
 *.out
 *.app
 
-# debug information files
+# Debug information files
 *.dwo
+
+# Coverage files
+.coverage
+*.gcov

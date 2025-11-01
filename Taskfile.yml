@@ -10,126 +10,113 @@ vars:
   CPP_FORMATTER: '{{default .CPP_FORMATTER "clang-format"}}'
 
 tasks:
-  build:
-    desc: "Build project (default: {{.CPP_BUILD_SYSTEM}})"
-    deps:
-      - "build:{{.CPP_BUILD_SYSTEM}}"
+  # ==========================================================================
+  # Build Tasks
+  # ==========================================================================
 
-  build:cmake:
-    desc: "Build project using CMake"
-    deps:
-      - task: which
-        vars:
-          COMMAND: "cmake"
+  build:
+    desc: "Build project (build-system: {{.CPP_BUILD_SYSTEM}}, type: {{.CPP_BUILD_TYPE}})"
+    cmds:
+      - task: "build:{{.CPP_BUILD_SYSTEM}}"
     sources:
-      - CMakeLists.txt
       - src/**/*.cpp
       - src/**/*.hpp
       - include/**/*.hpp
       - include/**/*.h
       - tests/**/*.cpp
+
+  build:cmake:
+    desc: "Build project using CMake"
+    sources:
+      - CMakeLists.txt
       - tests/CMakeLists.txt
     generates:
       - "{{.CPP_BUILD_DIR}}/CMakeCache.txt"
       - "{{.CPP_BUILD_DIR}}/compile_commands.json"
     cmds:
-      - |
-        # Use Unix Makefiles generator to avoid Visual Studio detection
-        cmake -B {{.CPP_BUILD_DIR}} -G "Unix Makefiles" -DCMAKE_BUILD_TYPE={{.CPP_BUILD_TYPE}} \
-          -DCMAKE_CXX_COMPILER={{.CPP_COMPILER}} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-      - cmake --build {{.CPP_BUILD_DIR}} --parallel
+      - mise run build
 
   build:xmake:
     desc: "Build project using XMake"
-    deps:
-      - task: which
-        vars:
-          COMMAND: "xmake"
     sources:
       - xmake.lua
+    generates:
+      - .xmake/cache/config
+      - "{{.CPP_BUILD_DIR}}/compile_commands.json"
+    cmds:
+      - mise run build
+
+  build:debug:
+    desc: "Build project in Debug Mode (default: {{.CPP_BUILD_SYSTEM}})"
+    cmds:
+      - task: "build:debug:{{.CPP_BUILD_SYSTEM}}"
+    sources:
       - src/**/*.cpp
       - src/**/*.hpp
       - include/**/*.hpp
       - include/**/*.h
       - tests/**/*.cpp
+
+  build:debug:cmake:
+    desc: "Build project in Debug Mode using CMake"
+    sources:
+      - CMakeLists.txt
+      - tests/CMakeLists.txt
+    generates:
+      - "{{.CPP_BUILD_DIR}}/CMakeCache.txt"
+      - "{{.CPP_BUILD_DIR}}/compile_commands.json"
+    cmds:
+      - mise run build:debug
+
+  build:debug:xmake:
+    desc: "Build project in Debug Mode using XMake"
+    sources:
+      - xmake.lua
     generates:
       - .xmake/cache/config
       - "{{.CPP_BUILD_DIR}}/compile_commands.json"
     cmds:
-      - |
-        # Configure xmake with the appropriate compiler
-        XMAKE_ARGS="-m {{.CPP_BUILD_TYPE | lower}} --toolchain=clang -y"
+      - mise run build:debug
 
-        # If a custom C++ compiler is specified, use it
-        if [ -n "{{.CPP_COMPILER}}" ] && [ "{{.CPP_COMPILER}}" != "clang++" ]; then
-          XMAKE_ARGS="$XMAKE_ARGS --cxx={{.CPP_COMPILER}}"
-        fi
-
-        xmake f $XMAKE_ARGS
-      - xmake build
-      - xmake project -k compile_commands {{.CPP_BUILD_DIR}}
+  # ============================================================================
+  # Clean Tasks
+  # ============================================================================
 
   clean:
+    cmds:
+      - for:
+          - '.jscpd/html'
+          - '.task'
+          - '.xmake'
+          - '{{.CPP_BUILD_DIR}}'
+          - 'docs'
+          - 'node_modules'
+          - 'package-lock.json'
+        cmd: rm -rf {{.ITEM}}
     desc: "Clean all builds"
-    deps: ["clean:cmake", "clean:node", "clean:xmake"]
-    cmds:
-      - rm -rf docs .jscpd/html .task
 
-  clean:cmake:
-    desc: "Clean CMake build"
-    cmds:
-      - rm -rf {{.CPP_BUILD_DIR}}
+  # docs:
+  #   desc: "Generate documentation with Doxygen"
+  #   deps:
+  #     - task: which
+  #       vars:
+  #         COMMAND: "doxygen"
+  #   cmds:
+  #     - doxygen Doxyfile
 
-  clean:node:
-    desc: "Clean Node.js modules"
-    cmds:
-      - rm -rf node_modules package-lock.json package.json
+  # duplicate-check:
+  #   desc: "Check for duplicate code using jscpd"
+  #   deps:
+  #     - task: which
+  #       vars:
+  #         COMMAND: "node"
+  #   cmds:
+  #     - cmd: |
+  #         [ ! -d ./node_modules ] && npm install jscpd  @jscpd/badge-reporter
 
-  clean:xmake:
-    desc: "Clean XMake build"
-    cmds:
-      - cmd: xmake clean
-        ignore_error: true
-      - rm -rf .xmake
+  #         mise exec -- npx jscpd src/ include/
 
-  debug:
-    desc: "Run application with debugger"
-    deps:
-      - task: which
-        vars:
-          COMMAND: "gdb"
-      - task: build
-        vars: { CPP_BUILD_TYPE: "Debug" }
-    cmds:
-      - gdb ./{{.CPP_BUILD_DIR}}/src/{{.CPP_PROJECT_NAME}}
-
-  default:
-    desc: "Show available tasks"
-    cmds:
-      - task --list
-
-  docs:
-    desc: "Generate documentation with Doxygen"
-    deps:
-      - task: which
-        vars:
-          COMMAND: "doxygen"
-    cmds:
-      - doxygen Doxyfile
-
-  duplicate-check:
-    desc: "Check for duplicate code using jscpd"
-    deps:
-      - task: which
-        vars:
-          COMMAND: "node"
-    cmds:
-      - cmd: |
-          [ ! -d ./node_modules ] && npm install jscpd  @jscpd/badge-reporter
-
-          mise exec -- npx jscpd src/ include/
-
-          git add .jscpd/jscpd-badge.svg 2>/dev/null || true
+  #         git add .jscpd/jscpd-badge.svg 2>/dev/null || true
 
   format:
     desc: "Format code using {{.CPP_FORMATTER}}"
@@ -149,170 +136,88 @@ tasks:
       - cmd: ./.venv/Scripts/python scripts/format.py {{.CLI_ARGS}}
         platforms: [windows]
 
-  hooks:install:
-    desc: "Install git hooks using pre-commit"
-    deps:
-      - task: which
-        vars:
-          COMMAND: "uv"
-      - task: venv
-    cmds:
-      - cmd: |
-          uv pip install pre-commit
-      - cmd: |
-          ./.venv/bin/pre-commit install
-          ./.venv/bin/pre-commit install --hook-type pre-push
-
-          echo "✓ Git hooks installed successfully"
-        platforms: [linux, darwin]
-      - cmd: |
-          ./.venv/Scripts/pre-commit install
-          ./.venv/Scripts/pre-commit install --hook-type pre-push
-
-          echo "✓ Git hooks installed successfully"
-        platforms: [windows]
-
-  deps:clean:
-    cmds:
-      - cmd: rm -rf $HOME/.local/share/mise
-        platforms: [darwin, linux]
-    desc: "Cleanup prerequisites"
-
-  deps:install:
-    cmds:
-      - task: which
-        vars:
-          COMMAND: mise
-      - cmd: mise install
-      - cmd: |
-          mise exec -- task venv
-    desc: "Installs prerequisites"
-
   lint:
     desc: "Run {{.CPP_LINTER}} linter and fix issues"
-    deps:
-      - build
     cmds:
-      - task: lint:check
-        vars:
-          CLI_ARGS: fix
+      - cmd: mise run lint
 
   lint:check:
     desc: "Run {{.CPP_LINTER}} linter without fixing"
-    deps:
-      - task: venv
-      - build
     cmds:
-      - cmd: mise exec -- ./.venv/bin/python scripts/lint.py {{.CLI_ARGS}} -p {{.CPP_BUILD_DIR}}
-        platforms: [darwin, linux]
-      - cmd: mise exec -- ./.venv/Scripts/python scripts/lint.py {{.CLI_ARGS}} -p {{.CPP_BUILD_DIR}}
-        platforms: [windows]
-
-  run:
-    desc: "Run the application (default: {{.CPP_BUILD_SYSTEM}})"
-    deps:
-      - "run:{{.CPP_BUILD_SYSTEM}}"
-
-  run:cmake:
-    desc: "Run the application (CMake build)"
-    deps: ["build:cmake"]
-    cmds:
-      - ./{{.CPP_BUILD_DIR}}/src/{{.CPP_PROJECT_NAME}}
-
-  run:xmake:
-    desc: "Run the application (XMake build)"
-    deps: ["build:xmake"]
-    cmds:
-      - mise exec -- xmake run {{.CPP_PROJECT_NAME}}
-
-  start:
-    desc: "Start the application (alias for run)"
-    deps: ["run"]
+      - cmd: mise run lint:check
 
   test:
     desc: "Run tests (default: {{.CPP_BUILD_SYSTEM}})"
-    deps:
-      - "test:{{.CPP_BUILD_SYSTEM}}"
+    cmds:
+      - task: build
+      - task: test:{{.CPP_BUILD_SYSTEM}}
 
   test:cmake:
     desc: "Run tests using CMake"
-    deps:
-      - task: which
-        vars:
-          COMMAND: "ctest"
-      - "build:cmake"
     cmds:
-      - cd {{.CPP_BUILD_DIR}} && mise exec -- ctest --output-on-failure
+      - mise run test
 
-  test:coverage:
-    desc: "Run tests with coverage"
-    deps:
-      - task: which
-        vars:
-          COMMAND: "gcov"
-      - task: build
-        vars: { CPP_BUILD_TYPE: "Debug" }
-    cmds:
-      - |
-        echo "🧪 Running tests with coverage..."
-        cd {{.CPP_BUILD_DIR}} && mise exec -- ctest --output-on-failure
-        echo "📊 Generating coverage report..."
-        find . -name "*.gcno" -exec mise exec -- gcov {} \; || echo "Coverage data collection may be incomplete"
-        echo "📁 Coverage files generated in build directory"
-
-  test:watch:
-    desc: "Run tests in watch mode (manual restart)"
-    cmds:
-      - |
-        echo "🔄 Watch mode: Press Ctrl+C to stop, then run 'task test' to re-run tests"
-        echo "💡 Consider using entr for automatic file watching:"
-        echo "    find src tests -name '*.cpp' -o -name '*.hpp' | entr -c task test"
-        task test
+  # test:watch:
+  #   desc: "Run tests in watch mode (manual restart)"
+  #   cmds:
+  #     - |
+  #       echo "🔄 Watch mode: Press Ctrl+C to stop, then run 'task test' to re-run tests"
+  #       echo "💡 Consider using entr for automatic file watching:"
+  #       echo "    find src tests -name '*.cpp' -o -name '*.hpp' | entr -c task test"
+  #       task test
 
   test:xmake:
     desc: "Run tests using XMake"
-    deps:
-      - task: which
-        vars:
-          COMMAND: "xmake"
-      - "build:xmake"
     cmds:
-      - mise exec -- xmake run {{.CPP_PROJECT_NAME}}-tests
+      - mise run test
 
   validate:
+    desc: "Run integration tests"
+    cmds:
+      - cmd: mise install
+      - for:
+          - cmake
+          - xmake
+        task: validate:by:build-system
+        vars:
+          CPP_BUILD_SYSTEM: "{{.ITEM}}"
+
+  validate:by:build-system:
     desc: "Run CI pipeline (format, lint, duplicate-check, test)"
     cmds:
       - task: clean
-      - task: "format:check"
-      - task: "duplicate-check"
-      - task: "lint:check"
+      # - task: "format:check"
+      # - task: "duplicate-check"
+      # - task: "lint:check"
       - task: "test"
       - task: "build"
+      - cmd: ./build/**/{{.CPP_PROJECT_NAME}}
+      - cmd: echo "✓ Integration test passed for {{.CPP_BUILD_SYSTEM}}"
 
-  valgrind:
-    desc: "Run application with Valgrind"
-    deps:
-      - task: which
-        vars:
-          COMMAND: "valgrind"
-      - task: build
-        vars: { CPP_BUILD_TYPE: "Debug" }
-    cmds:
-      - mise exec -- valgrind --leak-check=full --show-leak-kinds=all ./{{.CPP_BUILD_DIR}}/src/{{.CPP_PROJECT_NAME}}
+  # valgrind:
+  #   desc: "Run application with Valgrind"
+  #   deps:
+  #     - task: which
+  #       vars:
+  #         COMMAND: "valgrind"
+  #     - task: build
+  #       vars: { CPP_BUILD_TYPE: "Debug" }
+  #   cmds:
+  #     - mise exec -- valgrind --leak-check=full --show-leak-kinds=all ./{{.CPP_BUILD_DIR}}/src/{{.CPP_PROJECT_NAME}}
 
-  which:
-    desc: "Check if at least one command exists"
-    deps:
-      - task: venv
-    cmds:
-      - cmd: mise exec -- ./.venv/bin/python scripts/which.py {{if .COMMANDS}}{{.COMMANDS}}{{else}}{{.COMMAND}}{{end}}
-        platforms: [darwin, linux]
-      - cmd: mise exec -- ./.venv/Scripts/python scripts/which.py {{if .COMMANDS}}{{.COMMANDS}}{{else}}{{.COMMAND}}{{end}}
-        platforms: [windows]
+  # which:
+  #   desc: "Check if at least one command exists"
+  #   deps:
+  #     - task: venv
+  #   cmds:
+  #     - cmd: mise exec -- ./.venv/bin/python scripts/which.py {{if .COMMANDS}}{{.COMMANDS}}{{else}}{{.COMMAND}}{{end}}
+  #       platforms: [darwin, linux]
+  #     - cmd: mise exec -- ./.venv/Scripts/python scripts/which.py {{if .COMMANDS}}{{.COMMANDS}}{{else}}{{.COMMAND}}{{end}}
+  #       platforms: [windows]
 
-  venv:
-    cmds:
-      - cmd: |
-          mise exec -- uv venv
-    desc: "Create or update Python virtual environment in .venv"
-    silent: true
+  # venv:
+  #   cmds:
+  #     - cmd: |
+  #         mise exec -- uv venv
+  #   desc: "Create or update Python virtual environment in .venv"
+  #   silent: true

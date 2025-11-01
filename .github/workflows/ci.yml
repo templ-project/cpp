@@ -9,23 +9,17 @@ on:
 
 jobs:
   # Validation & Build matrix for different platforms and configurations
-  build-linux-release:
-    name: Build Linux Release
+  build:
+    name: Build ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          # - ubuntu-latest
+          # - windows-latest
     uses: ./.github/workflows/ci.build.yml
     with:
-      os: ubuntu-latest
-
-  # build-macos-release:
-  #   name: Build macOS Release
-  #   uses: ./.github/workflows/ci.build.yml
-  #   with:
-  #     os: macos-latest
-
-  # build-windows-release:
-  #   name: Build Windows Release
-  #   uses: ./.github/workflows/ci.build.yml
-  #   with:
-  #     os: windows-latest
+      os: ${{ matrix.os }}
 
   # # Version bump (only on main branch push, uses conventional commits)
   # version:

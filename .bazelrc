@@ -1,0 +1,70 @@
+# SDK flags are set via environment variables in .mise.toml (SDKROOT, CFLAGS, CXXFLAGS, LDFLAGS)
+
+# Common C++ settings
+build --cxxopt=-std=c++20
+build --cxxopt=-Wall
+build --cxxopt=-Wextra
+build --cxxopt=-Wpedantic
+
+# Use Clang as the default compiler
+build --repo_env=CC=clang
+build --repo_env=CXX=clang++
+
+# Inherit environment variables from mise (SDK paths for macOS)
+build --action_env=SDKROOT
+build --action_env=CFLAGS
+build --action_env=CXXFLAGS
+build --action_env=LDFLAGS
+
+# macOS-specific settings
+build:macos --cxxopt=-stdlib=libc++
+build:macos --linkopt=-stdlib=libc++
+build:macos --linkopt=-lc++abi
+
+# Debug configuration
+build:debug --compilation_mode=dbg
+build:debug --copt=-g
+build:debug --copt=-O0
+build:debug --strip=never
+
+# Debug with sanitizers (Linux/macOS)
+build:debug --copt=-fsanitize=address,undefined
+build:debug --linkopt=-fsanitize=address,undefined
+
+# Release configuration
+build:release --compilation_mode=opt
+build:release --copt=-O3
+build:release --copt=-DNDEBUG
+build:release --strip=always
+
+# Coverage configuration
+build:coverage --copt=-g
+build:coverage --copt=-O0
+build:coverage --copt=--coverage
+build:coverage --linkopt=--coverage
+build:coverage --instrumentation_filter="^//(src|include)[/:]"
+
+# Test configuration
+test --test_output=errors
+test --test_summary=detailed
+
+# Enable color output
+common --color=yes
+
+# Show test errors
+test --test_verbose_timeout_warnings
+
+# Build optimizations
+build --jobs=auto
+build --show_progress_rate_limit=0.5
+
+# Use a custom output directory
+build --symlink_prefix=bazel-
+
+# Cache settings
+build --disk_cache=~/.cache/bazel
+
+# Platform-specific auto-detection
+build:linux --config=debug
+build:macos --config=debug
+build:windows --config=debug

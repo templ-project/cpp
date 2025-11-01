@@ -18,6 +18,18 @@ jobs:
     steps:
       - uses: go-task/setup-task@v1
 
+      - name: Install Mise (Darwin & Linux)
+        if: ${{ runner.os != 'Windows' }}
+        run: |
+          curl https://mise.run | sh
+
+      - name: Install Mise (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          choco install mise -y --force
+
+      - run: mise install
+
       - name: Checkout code
         uses: actions/checkout@v4
 

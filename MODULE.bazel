@@ -1,0 +1,7 @@
+module(
+    name = "cpp_template",
+    version = "1.0.0",
+)
+
+# Google Test dependency via Bazel Central Registry
+bazel_dep(name = "googletest", version = "1.14.0")

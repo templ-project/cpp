@@ -197,10 +197,10 @@ def lint_files(files: List[Path], fix: bool = False, build_dir: str = 'build') -
     if not fix and issues_count > 0:
         if use_color:
             print(f"{Colors.YELLOW}⚠ {issues_count} file(s) have linting issues{Colors.RESET}")
-            print(f"{Colors.DIM}Run 'task lint' to attempt auto-fix.{Colors.RESET}")
+            print(f"{Colors.DIM}Use '--fix' to attempt auto-fix.{Colors.RESET}")
         else:
             print(f"! {issues_count} file(s) have linting issues")
-            print("Run 'task lint' to attempt auto-fix.")
+            print("Use '--fix' to attempt auto-fix.")
         return 1
 
     if fix and issues_count > 0:
