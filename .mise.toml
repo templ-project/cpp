@@ -133,6 +133,9 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 description = "Build Project Using Bazel"
 outputs = [ "bazel-bin/${usage_project_name?}" ]
 run = '''
+# Compile templates first
+python scripts/compile_templates.py --build-system bazel --compiler ${usage_compiler?}
+
 BAZEL_CONFIG=""
 if [ "${usage_build_type?}" = "Debug" ]; then
     BAZEL_CONFIG="--compilation_mode=dbg"
@@ -159,6 +162,9 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 description = "Build Project Using CMake"
 outputs = [ "${usage_build_dir?}/CMakeCache.txt", "${usage_build_dir?}/compile_commands.json" ]
 run = '''
+# Compile templates first
+python scripts/compile_templates.py --build-system cmake --compiler ${usage_compiler?}
+
 CMAKE_VARS=""
 if [ "${usage_build_type?}" = "Debug" ]; then
     CMAKE_VARS='-DCMAKE_CXX_FLAGS=--coverage'
@@ -166,7 +172,7 @@ fi
 
 cmake -B "${usage_build_dir}" -G "Unix Makefiles" \
     -DCMAKE_BUILD_TYPE="${usage_build_type}" \
-    -DCMAKE_CXX_COMPILER="${usage_compiler}" \
+    -DCMAKE_CXX_COMPILER="${usage_compiler?}" \
     $CMAKE_VARS \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
@@ -184,6 +190,9 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 description = "Build Project Using XMake"
 outputs = [ ".xmake/cache/config", "${usage_build_dir}/compile_commands.json" ]
 run = '''
+# Compile templates first
+python scripts/compile_templates.py --build-system xmake --compiler ${usage_compiler?}
+
 XMAKE_ARGS=""
 if [ "${usage_build_type?}" = "Debug" ]; then
     XMAKE_ARGS='--cxflags="--coverage" --ldflags="--coverage"'
@@ -212,16 +221,23 @@ description = "Clean all build artifacts"
 run = """
 rm -rf \
     ~/.local/state/mise/task-sources/* \
+    .bazelrc \
     .cache \
     .coverage \
     .jscpd/html \
     .task \
     .xmake \
     ${usage_build_dir} \
+    BUILD.bazel \
+    tests/BUILD.bazel \
+    CMakeLists.txt \
+    MODULE.bazel \
+    WORKSPACE \
     bazel-* \
     docs-html \
     node_modules \
-    package-lock.json
+    package-lock.json \
+    xmake.lua
 """
 usage = '''
 flag "-d --build-dir <dir>" env="CPP_BUILD_DIR" help="Build directory" default="build"
@@ -520,9 +536,11 @@ run = "mkdocs gh-deploy --force"
 description = "Run integration tests"
 run = """
 for build_system in bazel cmake xmake; do
+    echo ""
     echo "#==================================================================="
     echo "# Validating build system: $build_system"
     echo "#==================================================================="
+    echo ""
     mise run validate:by:build-system --build-system $build_system \
         --build-type ${usage_build_type?} --build-dir ${usage_build_dir?} \
         --compiler ${usage_compiler?} --project-name ${usage_project_name?}

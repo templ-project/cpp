@@ -10,6 +10,12 @@ specs
 # Bootstrap files
 _install/__pycache__/
 
+# Build Systems
+BUILD.bazel
+tests/BUILD.bazel
+CMakeLists.txt
+xmake.lua
+
 # Python
 .venv
 *.egg-info/
@@ -41,6 +47,17 @@ package.json
 .xmake
 bazel-*
 BUILD.xmake
+
+# Generated build configuration files (from templates/)
+CMakeLists.txt
+xmake.lua
+BUILD.bazel
+tests/BUILD.bazel
+.bazelrc
+MODULE.bazel
+WORKSPACE
+# TODO: remove this file from gitignore when switching to bazel
+MODULE.bazel.lock
 
 # Prerequisites
 *.d

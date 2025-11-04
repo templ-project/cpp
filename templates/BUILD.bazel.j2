@@ -1,4 +1,4 @@
-# Main BUILD file for cpp-template project
+# Main BUILD file for {{ project_name }} project (generated from template)
 
 # Library containing the greeter implementation
 cc_library(
@@ -9,9 +9,9 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
-# Main executable
+# Main executable (using project name from template)
 cc_binary(
-    name = "cpp-template",
+    name = "{{ project_name }}",
     srcs = ["src/main.cpp"],
     deps = [":greeter_lib"],
 )

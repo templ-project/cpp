@@ -1,7 +1,7 @@
 add_rules("mode.debug", "mode.release")
 
--- Project configuration
-set_project("cpp-template")
+-- Project configuration from template
+set_project("{{ project_name }}")
 set_version("1.0.0")
 set_description("A C++ Bootstrap/Template project using modern tools and best practices")
 
@@ -27,10 +27,12 @@ elseif is_mode("release") then
     add_defines("NDEBUG")
 end
 
--- -- Compiler configuration
--- set_toolchains("clang")
+-- Configure output directories to use {{ build_dir }}/<mode>
+-- Use $(mode) to get the actual build mode (debug/release) at build time
+set_targetdir("{{ build_dir }}/$(mode)")
+set_objectdir("{{ build_dir }}/$(mode)/.objs")
 
--- More explicit Clang enforcement
+-- Compiler configuration from template
 if is_plat("windows") then
     set_toolchains("clang-cl")  -- Use clang-cl on Windows
 elseif is_plat("macosx") then
@@ -61,14 +63,14 @@ add_includedirs("include")
 -- Note: SDK flags for macOS are set via environment variables in .mise.toml
 add_requires("gtest")
 
--- Target: main executable
-target("cpp-template")
+-- Target: main executable (using project name from template)
+target("{{ project_name }}")
     set_kind("binary")
     add_files("src/*.cpp")
     add_headerfiles("include/**.hpp")
 
 -- Target: Unit tests using Google Test
-target("cpp-template-tests")
+target("{{ project_name }}-tests")
     set_kind("binary")
     set_default(false)
     add_files("tests/unit/test_greeter.cpp", "src/greeter.cpp")
@@ -84,7 +86,7 @@ target("cpp-template-tests")
     end)
 
 -- Target: Integration tests (simple, no external dependencies)
-target("cpp-template-tests-simple")
+target("{{ project_name }}-tests-simple")
     set_kind("binary")
     set_default(false)
     add_files("tests/integration/test_simple.cpp", "src/greeter.cpp")

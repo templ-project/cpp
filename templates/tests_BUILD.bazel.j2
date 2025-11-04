@@ -1,8 +1,8 @@
-# Test BUILD file for cpp-template project
+# Test BUILD file for {{ project_name }} project (generated from template)
 
 # Unit tests using Google Test (Bzlmod naming)
 cc_test(
-    name = "cpp-template-tests",
+    name = "{{ project_name }}-tests",
     size = "small",
     srcs = ["unit/test_greeter.cpp"],
     deps = [
@@ -14,7 +14,7 @@ cc_test(
 
 # Integration tests (simple, no external dependencies)
 cc_test(
-    name = "cpp-template-tests-simple",
+    name = "{{ project_name }}-tests-simple",
     size = "small",
     srcs = [
         "integration/test_simple.cpp",
