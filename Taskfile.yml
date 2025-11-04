@@ -76,7 +76,7 @@ tasks:
       - |
         CMAKE_VARS=""
         if [ "{{.CPP_BUILD_TYPE}}" = "Debug" ]; then
-            CMAKE_VARS='-DCMAKE_CXX_FLAGS=--coverage'
+            CMAKE_VARS='-DCMAKE_CXX_FLAGS="--coverage"'
         fi
         cmake -B "{{.CPP_BUILD_DIR}}" -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE="{{.CPP_BUILD_TYPE}}" \
@@ -102,7 +102,7 @@ tasks:
       - |
         XMAKE_ARGS=""
         if [ "{{.CPP_BUILD_TYPE}}" = "Debug" ]; then
-            XMAKE_ARGS='--cxflags="--coverage" --ldflags="--coverage"'
+            XMAKE_ARGS='--cxflags=--coverage --ldflags=--coverage'
         fi
         xmake f -m $(echo "{{.CPP_BUILD_TYPE}}" | tr '[:upper:]' '[:lower:]') \
             $XMAKE_ARGS \

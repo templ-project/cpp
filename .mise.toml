@@ -211,7 +211,7 @@ python scripts/compile_templates.py --build-system xmake --compiler ${usage_comp
 
 XMAKE_ARGS=""
 if [ "${usage_build_type?}" = "Debug" ]; then
-    XMAKE_ARGS='--cxflags="--coverage" --ldflags="--coverage"'
+    XMAKE_ARGS='--cxflags=--coverage --ldflags=--coverage'
 fi
 xmake f -m $(echo "${usage_build_type}" | tr '[:upper:]' '[:lower:]') \
     $XMAKE_ARGS \
