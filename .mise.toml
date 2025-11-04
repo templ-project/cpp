@@ -89,6 +89,13 @@ version = "latest"
 # version = "latest"
 
 ############################################################################
+# Hooks                                                    #
+############################################################################
+
+[hooks]
+enter = "[ -f .venv/lib/python*/site-packages/pre-commit ] || uv sync"
+
+############################################################################
 # Environment variables                                                    #
 ############################################################################
 
@@ -595,3 +602,25 @@ flag "-d --build-dir <dir>" env="CPP_BUILD_DIR" help="Build directory" default="
 flag "-c --compiler <compiler>" env="CPP_COMPILER" help="C++ compiler to use" default="clang++"
 flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" default="cpp-template"
 '''
+
+# ============================================================================
+# Python/UV Package Management Tasks
+# ============================================================================
+
+[tasks."uv:refresh"]
+description = "Refresh all Python packages (update dependencies)"
+run = """
+echo "🔄 Refreshing Python packages..."
+uv sync --upgrade
+echo "✓ Packages refreshed"
+"""
+
+[tasks."uv:sync"]
+description = "Install Python dependencies (including pre-commit)"
+run = """
+echo "📦 Installing Python dependencies..."
+uv sync
+echo "🪝 Installing pre-commit hooks..."
+pre-commit install
+echo "✓ Python environment ready"
+"""

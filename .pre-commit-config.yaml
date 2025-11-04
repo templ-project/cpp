@@ -26,7 +26,7 @@ repos:
 
   - id: duplicate-check-commit
     name: Check for duplicate code
-    entry: bash -c "task duplicate-check"
+    entry: bash -c "mise run duplicate-check"
     language: system
     pass_filenames: false
     always_run: true
