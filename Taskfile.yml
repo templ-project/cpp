@@ -55,6 +55,9 @@ tasks:
         fi
         bazel build //:{{.CPP_PROJECT_NAME}} $BAZEL_CONFIG
 
+        # Generate compile_commands.json for clang-tidy using Hedron
+        bazel run @hedron_compile_commands//:refresh_all
+
   build:cmake:
     desc: "Build project using CMake"
     sources:
@@ -129,6 +132,7 @@ tasks:
             MODULE.bazel \
             WORKSPACE \
             bazel-* \
+            compile_commands.json \
             docs-html \
             node_modules \
             package-lock.json \
@@ -181,7 +185,13 @@ tasks:
           CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
     cmds:
-      - python scripts/lint.py --build-dir {{.CPP_BUILD_DIR}} --fix
+      - |
+        # Bazel generates compile_commands.json at project root, others use build dir
+        LINT_BUILD_DIR="{{.CPP_BUILD_DIR}}"
+        if [ "{{.CPP_BUILD_SYSTEM}}" = "bazel" ]; then
+            LINT_BUILD_DIR="."
+        fi
+        python scripts/lint.py --build-dir "$LINT_BUILD_DIR" --fix
 
   lint:check:
     desc: "Run linter without fixing"
@@ -191,7 +201,13 @@ tasks:
           CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
     cmds:
-      - python scripts/lint.py --build-dir {{.CPP_BUILD_DIR}}
+      - |
+        # Bazel generates compile_commands.json at project root, others use build dir
+        LINT_BUILD_DIR="{{.CPP_BUILD_DIR}}"
+        if [ "{{.CPP_BUILD_SYSTEM}}" = "bazel" ]; then
+            LINT_BUILD_DIR="."
+        fi
+        python scripts/lint.py --build-dir "$LINT_BUILD_DIR"
 
   duplicate-check:
     desc: "Check for duplicate code using jscpd"

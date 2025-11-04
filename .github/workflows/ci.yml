@@ -2,9 +2,9 @@ name: C++ CI
 
 on:
   push:
-    branches: [ main, develop, mise_isolation ]
+    branches: [main, develop, mise_isolation]
   pull_request:
-    branches: [ main, develop, mise_isolation ]
+    branches: [main, develop, mise_isolation]
   workflow_dispatch:
 
 jobs:
@@ -20,6 +20,7 @@ jobs:
     uses: ./.github/workflows/ci.build.yml
     with:
       os: ${{ matrix.os }}
+      build_system: '["bazel", "xmake", "cmake"]'
 
   # # Version bump (only on main branch push, uses conventional commits)
   # version:

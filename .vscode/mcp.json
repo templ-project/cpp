@@ -1,0 +1,19 @@
+{
+  "servers": {
+    "language-server": {
+      "command": "${env:HOME}/go/bin/mcp-language-server",
+      "args": [
+        "--workspace",
+        "../",
+        "--lsp",
+        "clangd",
+        "--",
+        "--compile-commands-dir=../build"
+      ]
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    }
+  }
+}

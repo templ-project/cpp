@@ -101,7 +101,7 @@ enter = "[ -f .venv/lib/python*/site-packages/pre-commit ] || uv sync"
 
 # Environment variables
 [env]
-_.python.venv = { path = ".venv", create = true } # Auto-create venv
+_.python.venv = { path = ".venv", create = true }                                                                                                                                                   # Auto-create venv
 SDKROOT = "{% if os() == 'macos' %}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% else %}{{env.SDKROOT}}{% endif %}"
 CFLAGS = "{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% else %}{{env.CFLAGS}}{% endif %}"
 CXXFLAGS = "{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% else %}{{env.CXXFLAGS}}{% endif %}"
@@ -119,14 +119,16 @@ LDFLAGS = "{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools
 description = "Build Project"
 # outputs = []
 run = '''
-    mise run build:${usage_build_system?}
+set -ex
+
+mise run build:${usage_build_system?}
 '''
 sources = [
-    "src/**/*.cpp",
-    "src/**/*.hpp",
-    "include/**/*.hpp",
-    "include/**/*.h",
-    "tests/**/*.cpp"
+  "src/**/*.cpp",
+  "src/**/*.hpp",
+  "include/**/*.hpp",
+  "include/**/*.h",
+  "tests/**/*.cpp",
 ]
 usage = '''
 flag "-s --build-system <system>" env="CPP_BUILD_SYSTEM" help="Build system to use (bazel, cmake, xmake)" default="cmake"
@@ -138,8 +140,10 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 
 [tasks."build:bazel"]
 description = "Build Project Using Bazel"
-outputs = [ "bazel-bin/${usage_project_name?}" ]
+outputs = ["bazel-bin/${usage_project_name?}"]
 run = '''
+set -ex
+
 # Compile templates first
 python scripts/compile_templates.py --build-system bazel --compiler ${usage_compiler?}
 
@@ -152,12 +156,10 @@ fi
 
 bazel build //:${usage_project_name?} $BAZEL_CONFIG
 
-# Generate compile_commands.json for IDE integration
-if command -v bazel-compdb >/dev/null 2>&1; then
-    bazel-compdb
-fi
+# Generate compile_commands.json for clang-tidy using Hedron
+bazel run @hedron_compile_commands//:refresh_all
 '''
-sources = [ "BUILD", "WORKSPACE", ".bazelrc" ]
+sources = ["BUILD", "WORKSPACE", ".bazelrc"]
 usage = '''
 flag "-t --build-type <type>" env="CPP_BUILD_TYPE" help="Build type (Release, Debug)" default="Release"
 flag "-d --build-dir <dir>" env="CPP_BUILD_DIR" help="Build directory" default="build"
@@ -167,8 +169,13 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 
 [tasks."build:cmake"]
 description = "Build Project Using CMake"
-outputs = [ "${usage_build_dir?}/CMakeCache.txt", "${usage_build_dir?}/compile_commands.json" ]
+outputs = [
+  "${usage_build_dir?}/CMakeCache.txt",
+  "${usage_build_dir?}/compile_commands.json",
+]
 run = '''
+set -ex
+
 # Compile templates first
 python scripts/compile_templates.py --build-system cmake --compiler ${usage_compiler?}
 
@@ -185,7 +192,7 @@ cmake -B "${usage_build_dir}" -G "Unix Makefiles" \
 
 cmake --build "${usage_build_dir}" --parallel
 '''
-sources = [ "CMakeLists.txt", "tests/CMakeLists.txt" ]
+sources = ["CMakeLists.txt", "tests/CMakeLists.txt"]
 usage = '''
 flag "-t --build-type <type>" env="CPP_BUILD_TYPE" help="Build type (Release, Debug)" default="Release"
 flag "-d --build-dir <dir>" env="CPP_BUILD_DIR" help="Build directory" default="build"
@@ -195,8 +202,10 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 
 [tasks."build:xmake"]
 description = "Build Project Using XMake"
-outputs = [ ".xmake/cache/config", "${usage_build_dir}/compile_commands.json" ]
+outputs = [".xmake/cache/config", "${usage_build_dir}/compile_commands.json"]
 run = '''
+set -ex
+
 # Compile templates first
 python scripts/compile_templates.py --build-system xmake --compiler ${usage_compiler?}
 
@@ -211,7 +220,7 @@ xmake f -m $(echo "${usage_build_type}" | tr '[:upper:]' '[:lower:]') \
 xmake build
 xmake project -k compile_commands "${usage_build_dir}"
 '''
-sources = [ "xmake.lua" ]
+sources = ["xmake.lua"]
 usage = '''
 flag "-t --build-type <type>" env="CPP_BUILD_TYPE" help="Build type (Release, Debug)" default="Release"
 flag "-d --build-dir <dir>" env="CPP_BUILD_DIR" help="Build directory" default="build"
@@ -226,6 +235,8 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 [tasks.clean]
 description = "Clean all build artifacts"
 run = """
+set -ex
+
 rm -rf \
     ~/.local/state/mise/task-sources/* \
     .bazelrc \
@@ -241,6 +252,7 @@ rm -rf \
     MODULE.bazel \
     WORKSPACE \
     bazel-* \
+    compile_commands.json \
     docs-html \
     node_modules \
     package-lock.json \
@@ -257,6 +269,8 @@ flag "-d --build-dir <dir>" env="CPP_BUILD_DIR" help="Build directory" default="
 [tasks.test]
 description = "Run tests"
 run = '''
+set -ex
+
 mise run build:${usage_build_system?} --build-type Debug --build-dir ${usage_build_dir?} --compiler ${usage_compiler?} --project-name ${usage_project_name?}
 mise run test:${usage_build_system?} --build-dir ${usage_build_dir?} --project-name ${usage_project_name?} --cov-tool ${usage_cov_tool?}
 '''
@@ -272,6 +286,8 @@ flag "-c --cov-tool <name>" env="CPP_COV_TOOL" help="Coverage tool to use (gcovr
 description = "Run tests with Bazel (coverage not supported - use cmake/xmake for coverage)"
 hide = true
 run = '''
+set -ex
+
 # Note: Bazel's coverage system doesn't work reliably with Clang on macOS
 # For coverage reports, use cmake or xmake build systems instead
 bazel test //tests:${usage_project_name?}-tests --test_output=all
@@ -290,10 +306,13 @@ flag "-c --cov-tool <name>" env="CPP_COV_TOOL" help="Coverage tool to use (gcovr
 [tasks."test:cmake"]
 description = "Run tests with coverage using CMake"
 hide = true
-run = [
-    "cd ${usage_build_dir} && ctest --output-on-failure",
-    "mise run test:gen-coverage --cov-tool ${usage_cov_tool?} --build-dir ${usage_build_dir?}"
-]
+run = '''
+set -ex
+
+cd ${usage_build_dir}
+ctest --output-on-failure
+mise run test:gen-coverage --cov-tool ${usage_cov_tool?} --build-dir ${usage_build_dir?}
+'''
 usage = '''
 flag "-d --build-dir <dir>" env="CPP_BUILD_DIR" help="Build directory" default="build"
 flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" default="cpp-template"
@@ -303,10 +322,12 @@ flag "-c --cov-tool <name>" env="CPP_COV_TOOL" help="Coverage tool to use (gcovr
 [tasks."test:xmake"]
 description = "Run tests with coverage using XMake"
 hide = true
-run = [
-    "xmake run ${usage_project_name?}-tests",
-    "mise run test:gen-coverage --cov-tool ${usage_cov_tool?} --build-dir ${usage_build_dir?}"
-]
+run = '''
+set -ex
+
+xmake run ${usage_project_name?}-tests
+mise run test:gen-coverage --cov-tool ${usage_cov_tool?} --build-dir ${usage_build_dir?}
+'''
 usage = '''
 flag "-d --build-dir <dir>" env="CPP_BUILD_DIR" help="Build directory" default="build"
 flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" default="cpp-template"
@@ -317,6 +338,8 @@ flag "-c --cov-tool <name>" env="CPP_COV_TOOL" help="Coverage tool to use (gcovr
 description = "Generate coverage report (CLI table + optional HTML) (requires gcovr/gcov/llvm-cov)"
 hide = true
 run = '''
+set -ex
+
 echo "📊 Generating coverage report..."
 echo ""
 
@@ -403,6 +426,8 @@ flag "-c --cov-tool <name>" env="CPP_COV_TOOL" help="Coverage tool to use (gcovr
 [tasks.format]
 description = "Format code and fix issues"
 run = """
+set -ex
+
 SCRIPT_ARGS=""
 if [ "${usage_staged}" = "true" ]; then
     SCRIPT_ARGS="$SCRIPT_ARGS --staged"
@@ -420,6 +445,8 @@ flag "-s --staged" help="Only check/format staged files in git"
 [tasks.lint]
 description = "Run linter and fix issues"
 run = '''
+set -ex
+
 mise run build:${usage_build_system?} --build-type=${usage_build_type?} --build-dir=${usage_build_dir?} \
     --compiler=${usage_compiler?} --project-name=${usage_project_name?}
 
@@ -431,7 +458,14 @@ fi
 if [ "${usage_fix}" = "true" ]; then
     SCRIPT_ARGS="$SCRIPT_ARGS --fix"
 fi
-python scripts/lint.py --build-dir ${usage_build_dir} $SCRIPT_ARGS
+
+# Bazel generates compile_commands.json at project root, others use build dir
+LINT_BUILD_DIR="${usage_build_dir}"
+if [ "${usage_build_system?}" = "bazel" ]; then
+    LINT_BUILD_DIR="."
+fi
+
+python scripts/lint.py --build-dir "$LINT_BUILD_DIR" $SCRIPT_ARGS
 '''
 usage = '''
 flag "-s --build-system <system>" env="CPP_BUILD_SYSTEM" help="Build system to use (bazel, cmake, xmake)" default="cmake"
@@ -446,6 +480,8 @@ flag "-s --staged" help="Only check/format staged files in git"
 [tasks."duplicate-check"]
 description = "Check for duplicate code using jscpd"
 run = """
+set -ex
+
 [ ! -d ./node_modules ] && npm install jscpd @jscpd/badge-reporter
 npx jscpd src/ include/
 git add .jscpd/jscpd-badge.svg 2>/dev/null || true
@@ -458,6 +494,8 @@ git add .jscpd/jscpd-badge.svg 2>/dev/null || true
 [tasks.run]
 description = "Run application with debugger (requires gdb)"
 run = """
+set -ex
+
 mise run build:${usage_build_system?} --build-type=${usage_build_type?} --build-dir=${usage_build_dir?} \
     --compiler=${usage_compiler?} --project-name=${usage_project_name?}
 
@@ -478,6 +516,8 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 [tasks.debug]
 description = "Run application with debugger (requires gdb)"
 run = """
+set -ex
+
 mise run build:${usage_build_system?} --build-type=Debug --build-dir=${usage_build_dir?} \
     --compiler=${usage_compiler?} --project-name=${usage_project_name?}
 
@@ -538,6 +578,8 @@ run = "mkdocs gh-deploy --force"
 [tasks.validate]
 description = "Run integration tests"
 run = """
+set -ex
+
 for build_system in bazel cmake xmake; do
     echo ""
     echo "#==================================================================="
@@ -560,6 +602,8 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 description = "Run CI pipeline (format, lint, duplicate-check, test)"
 hide = true
 run = """
+set -ex
+
 mise run clean
 
 mise run format --fix
@@ -608,6 +652,8 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 [tasks."uv:refresh"]
 description = "Refresh all Python packages (update dependencies)"
 run = """
+set -ex
+
 echo "🔄 Refreshing Python packages..."
 uv sync --upgrade
 echo "✓ Packages refreshed"
@@ -616,6 +662,8 @@ echo "✓ Packages refreshed"
 [tasks."uv:sync"]
 description = "Install Python dependencies (including pre-commit)"
 run = """
+set -ex
+
 echo "📦 Installing Python dependencies..."
 uv sync
 echo "🪝 Installing pre-commit hooks..."
