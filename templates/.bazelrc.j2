@@ -37,12 +37,15 @@ build:release --copt=-O3
 build:release --copt=-DNDEBUG
 build:release --strip=always
 
-# Coverage configuration
+# Coverage configuration (using gcov-compatible coverage)
 build:coverage --copt=-g
 build:coverage --copt=-O0
 build:coverage --copt=--coverage
 build:coverage --linkopt=--coverage
 build:coverage --instrumentation_filter="^//(src|include)[/:]"
+build:coverage --collect_code_coverage
+build:coverage --combined_report=lcov
+coverage --experimental_generate_llvm_lcov
 
 # Test configuration
 test --test_output=errors

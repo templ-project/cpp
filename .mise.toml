@@ -269,21 +269,17 @@ flag "-c --cov-tool <name>" env="CPP_COV_TOOL" help="Coverage tool to use (gcovr
 '''
 
 [tasks."test:bazel"]
-description = "Run tests with coverage using Bazel"
+description = "Run tests with Bazel (coverage not supported - use cmake/xmake for coverage)"
 hide = true
 run = '''
-BAZEL_CONFIG=""
-if [ "${usage_cov_tool?}" = "gcovr" ] || [ "${usage_cov_tool?}" = "lcov" ]; then
-    BAZEL_CONFIG="--config=coverage"
-fi
+# Note: Bazel's coverage system doesn't work reliably with Clang on macOS
+# For coverage reports, use cmake or xmake build systems instead
+bazel test //tests:${usage_project_name?}-tests --test_output=all
 
-bazel test //tests:${usage_project_name?}-tests $BAZEL_CONFIG --test_output=all
-
-# Generate coverage if configured
-if [ -n "$BAZEL_CONFIG" ]; then
-    bazel coverage //tests:${usage_project_name?}-tests $BAZEL_CONFIG
-    mise run test:gen-coverage --cov-tool ${usage_cov_tool?} --build-dir bazel-out
-fi
+echo ""
+echo "ℹ️  Note: Bazel coverage is not supported with Clang on macOS"
+echo "💡 For coverage reports, run: mise run test --build-system cmake"
+echo ""
 '''
 usage = '''
 flag "-d --build-dir <dir>" env="CPP_BUILD_DIR" help="Build directory" default="build"
@@ -573,6 +569,8 @@ mise run duplicate-check
 mise run lint --build-system ${usage_build_system?} --build-type ${usage_build_type?} \
     --build-dir ${usage_build_dir?} --compiler ${usage_compiler?} --project-name ${usage_project_name?} \
     --fix
+
+mise run clean
 
 mise run test --build-system ${usage_build_system?} \
     --build-dir ${usage_build_dir?} --compiler ${usage_compiler?} --project-name ${usage_project_name?}
