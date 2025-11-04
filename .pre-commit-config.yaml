@@ -12,24 +12,25 @@ repos:
   # Pre-commit hooks (run on every commit)
   - id: clang-format-fix
     name: Fix C++ formatting
-    entry: mise run format --staged
+    entry: bash -c 'mise run format --staged && git add -u'
     language: system
     types: [ c++ ]
     pass_filenames: false
 
   - id: clang-tidy-fix
     name: Fix C++ linting issues
-    entry: mise run lint --staged
+    entry: bash -c 'mise run lint --staged && git add -u'
     language: system
     types: [ c++ ]
     pass_filenames: false
 
   - id: duplicate-check-commit
     name: Check for duplicate code
-    entry: bash -c "mise run duplicate-check"
+    entry: bash -c "mise run duplicate-check && git add .jscpd/jscpd-badge.svg"
     language: system
     pass_filenames: false
     always_run: true
+
   # TODO: No idea how this works for now
   # - id: license-check
   #   name: Check license headers (informational)
@@ -45,6 +46,7 @@ repos:
   #   pass_filenames: false
 
   # Built-in validators for common file types
+
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.6.0
   hooks:
