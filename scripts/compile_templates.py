@@ -90,6 +90,7 @@ def compile_cmake_templates(context: dict) -> None:
     """Compile CMake configuration files"""
     project_root = Path(__file__).parent.parent
     compile_template("CMakeLists.txt.j2", project_root / "CMakeLists.txt", context)
+    compile_template("src_CMakeLists.txt.j2", project_root / "src" / "CMakeLists.txt", context)
 
 
 def compile_xmake_templates(context: dict) -> None:

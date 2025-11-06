@@ -55,6 +55,7 @@ BUILD.bazel
 tests/BUILD.bazel
 .bazelrc
 MODULE.bazel
+src/CMakeLists.txt
 WORKSPACE
 # TODO: remove this file from gitignore when switching to bazel
 MODULE.bazel.lock

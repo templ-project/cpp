@@ -256,6 +256,7 @@ rm -rf \
     docs-html \
     node_modules \
     package-lock.json \
+    src/CMakeLists.txt \
     xmake.lua
 """
 usage = '''
