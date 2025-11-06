@@ -16,6 +16,7 @@ repos:
     language: system
     types: [ c++ ]
     pass_filenames: false
+    stages: [ pre-commit ]
 
   - id: clang-tidy-fix
     name: Fix C++ linting issues
@@ -23,6 +24,7 @@ repos:
     language: system
     types: [ c++ ]
     pass_filenames: false
+    stages: [ pre-commit ]
 
   - id: duplicate-check-commit
     name: Check for duplicate code
@@ -30,6 +32,7 @@ repos:
     language: system
     pass_filenames: false
     always_run: true
+    stages: [ pre-commit ]
 
   # TODO: No idea how this works for now
   # - id: license-check
@@ -73,14 +76,14 @@ repos:
   hooks:
   - id: run-tests
     name: Run all tests
-    entry: mise run test
+    entry: bash -c 'for bs in bazel cmake xmake; do mise run clean && mise run test --build-system $bs; done'
     language: system
     pass_filenames: false
     stages: [ pre-push ]
 
   - id: build-check
     name: Verify build succeeds
-    entry: mise run build
+    entry: bash -c 'for bs in bazel cmake xmake; do mise run clean && mise run build --build-system $bs; done'
     language: system
     pass_filenames: false
     stages: [ pre-push ]
