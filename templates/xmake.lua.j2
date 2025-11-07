@@ -33,25 +33,47 @@ set_targetdir("{{ build_dir }}/$(mode)")
 set_objectdir("{{ build_dir }}/$(mode)/.objs")
 
 -- Compiler configuration from template
+{% if compiler == 'msvc' %}
 if is_plat("windows") then
-    set_toolchains("clang-cl")  -- Use clang-cl on Windows
+    set_toolchains("msvc")
+end
+{% elif compiler == 'g++' %}
+if is_plat("macosx", "linux") then
+    set_toolchains("gcc")
+    -- Add coverage flags for Debug builds
+    if is_mode("debug") then
+        add_cxflags("--coverage")
+        add_ldflags("--coverage")
+    end
+end
+{% elif compiler == 'clang++' %}
+if is_plat("windows") then
+    set_toolchains("clang")  -- Use regular clang (not clang-cl) for coverage support
+    -- Add coverage flags for Debug builds
+    if is_mode("debug") then
+        add_cxflags("--coverage")
+        add_ldflags("--coverage")
+    end
 elseif is_plat("macosx") then
     set_toolchains("clang")
     add_cxflags("-stdlib=libc++")  -- Use libc++ on macOS (built-in)
     add_ldflags("-stdlib=libc++", "-lc++abi")
+    -- Add coverage flags for Debug builds
+    if is_mode("debug") then
+        add_cxflags("--coverage")
+        add_ldflags("--coverage")
+    end
 elseif is_plat("linux") then
     set_toolchains("clang")
     -- On Linux, use libstdc++ to match pre-built gtest from xmake packages
     -- libc++ would require building gtest from source with matching stdlib
-end
-
--- Validate compiler at configuration time
-before_build(function (target)
-    local cc = target:tool("cxx")
-    if not cc or not cc:find("clang") then
-        raise("This project requires Clang/LLVM. Please install Clang.")
+    -- Add coverage flags for Debug builds
+    if is_mode("debug") then
+        add_cxflags("--coverage")
+        add_ldflags("--coverage")
     end
-end)
+end
+{% endif %}
 
 -- Disable -Werror for better third-party compatibility
 add_cxflags("-Wall", "-Wextra", "-Wpedantic")
@@ -61,7 +83,7 @@ add_includedirs("include")
 
 -- Add packages
 -- Note: SDK flags for macOS are set via environment variables in .mise.toml
-add_requires("gtest")
+add_requires("gtest 1.15.2")
 
 -- Target: main executable (using project name from template)
 target("{{ project_name }}")
