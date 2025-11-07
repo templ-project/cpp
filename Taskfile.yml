@@ -329,20 +329,19 @@ tasks:
           CPP_COV_TOOL: "{{.CPP_COV_TOOL}}"
 
   test:bazel:
-    desc: "Run tests with Bazel and generate coverage"
+    desc: 'Run tests with Bazel{{if ne OS "windows"}} and generate coverage{{end}}'
     cmds:
-      - |
-        if [ "{{.CPP_COMPILER}}" = "msvc" ]; then
-          echo "✅ Running tests without coverage for MSVC..."
+      - cmd: |
+          {{if eq OS "windows"}}
+          echo "✅ Running tests (coverage not supported on Windows)..."
           bazel test //tests/... --test_output=errors
-        else
+          echo ""
+          echo "⚠️ Bazel coverage is not supported with LLVM. Skipping."
+          echo ""
+          {{else}}
           echo "📊 Running tests with coverage for {{.CPP_COMPILER}}..."
           bazel coverage //tests/... --config=coverage
-        fi
-      - task: test:gen-coverage
-        vars:
-          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
-          CPP_COV_TOOL: "{{.CPP_COV_TOOL}}"
+          {{end}}
 
   test:cmake:
     desc: "Run tests with coverage using CMake"
@@ -365,16 +364,16 @@ tasks:
   test:gen-coverage:
     desc: "Generate coverage report"
     cmds:
-      - |
-        echo ""
-        echo "📊 Generating coverage report..."
-        echo ""
-
-        {{if eq .CPP_COMPILER "msvc"}}
-          echo "⚠️ Bazel coverage is not supported with MSVC. Skipping."
+      - cmd: |
           echo ""
-          exit 0
-        {{end}}
+          echo "📊 Generating coverage report..."
+          echo ""
+
+          {{if eq .CPP_COMPILER "clang++"}}
+            echo "⚠️ Bazel coverage is not supported with LLVM. Skipping."
+            echo ""
+            exit 0
+          {{end}}
 
         # echo "📊 Running Bazel coverage..."
         # bazel coverage //tests/... --config=coverage
@@ -553,6 +552,8 @@ tasks:
           echo "✅ Validation successful for {{.CPP_BUILD_SYSTEM}} with {{.CPP_COMPILER}}"
           echo "{{.__TF_HEADER_LINE}}"
           echo ""
+    desc: "Run CI pipeline for specific build system and compiler"
+    silent: true
 
   # ============================================================================
   # Python/UV Package Management Tasks
