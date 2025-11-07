@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -25,21 +26,6 @@ except ImportError:
     sys.exit(1)
 
 
-def resolve_compiler_path(compiler_name: str) -> str:
-    """Resolve compiler name to full path using which command"""
-    try:
-        result = subprocess.run(
-            ["which", compiler_name],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        # If which fails, return the original name
-        return compiler_name
-
-
 def get_template_context():
     """Extract configuration from environment variables set by .mise.toml"""
     compiler = os.getenv("CPP_COMPILER", "clang++")
@@ -48,8 +34,10 @@ def get_template_context():
         "build_system": os.getenv("CPP_BUILD_SYSTEM", "cmake"),
         "build_type": os.getenv("CPP_BUILD_TYPE", "Release"),
         "build_dir": os.getenv("CPP_BUILD_DIR", "build"),
-        "compiler": resolve_compiler_path(compiler),
+        "compiler": compiler,
         "project_name": os.getenv("CPP_PROJECT_NAME", "cpp-template"),
+        "os": lambda: platform.system().lower(),  # Add os() function for templates
+        "os_env": os.getenv,
     }
 
 
@@ -131,7 +119,7 @@ def main():
 
     # Override compiler if provided via CLI
     if args.compiler:
-        context["compiler"] = resolve_compiler_path(args.compiler)
+        context["compiler"] = args.compiler
 
     print(f"📝 Compiling templates for {args.build_system}...")
     print(f"   Project: {context['project_name']}")

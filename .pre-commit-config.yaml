@@ -1,89 +1,90 @@
 repos:
-# Markdown validation and fixing
-- repo: https://github.com/igorshubovych/markdownlint-cli
-  rev: v0.39.0
-  hooks:
-  - id: markdownlint-fix
-    name: Fix Markdown files
-    stages: [ pre-commit ]
+  # Markdown validation and fixing
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint-fix
+        name: Fix Markdown files
+        stages: [pre-commit]
 
-- repo: local
-  hooks:
-  # Pre-commit hooks (run on every commit)
-  - id: clang-format-fix
-    name: Fix C++ formatting
-    entry: bash -c 'mise run format --staged && git add -u'
-    language: system
-    types: [ c++ ]
-    pass_filenames: false
-    stages: [ pre-commit ]
+  - repo: local
+    hooks:
+      # Pre-commit hooks (run on every commit)
+      - id: clang-format-fix
+        name: Fix C++ formatting
+        entry: bash -c 'mise run format --staged && git add -u'
+        language: system
+        types: [c++]
+        pass_filenames: false
+        stages: [pre-commit]
 
-  - id: clang-tidy-fix
-    name: Fix C++ linting issues
-    entry: bash -c 'mise run lint --staged && git add -u'
-    language: system
-    types: [ c++ ]
-    pass_filenames: false
-    stages: [ pre-commit ]
+      - id: clang-tidy-fix
+        name: Fix C++ linting issues
+        entry: bash -c 'mise run lint --staged && git add -u'
+        language: system
+        types: [c++]
+        pass_filenames: false
+        stages: [pre-commit]
 
-  - id: duplicate-check-commit
-    name: Check for duplicate code
-    entry: bash -c "mise run duplicate-check && git add .jscpd/jscpd-badge.svg"
-    language: system
-    pass_filenames: false
-    always_run: true
-    stages: [ pre-commit ]
+      # TODO: Disabled for now until we figure out how to make it work properly (on Windows especially)
+      # - id: duplicate-check-commit
+      #   name: Check for duplicate code
+      #   entry: bash -c "mise exec -- task duplicate-check && git add .jscpd/jscpd-badge.svg"
+      #   language: system
+      #   pass_filenames: false
+      #   always_run: true
+      #   stages: [pre-commit]
 
-  # TODO: No idea how this works for now
-  # - id: license-check
-  #   name: Check license headers (informational)
-  #   entry: bash -c 'files_without_license=$(find src include tests -name "*.cpp" -o -name "*.hpp" | xargs grep -L "Copyright\|License\|SPDX" 2>/dev/null || true); if [ -n "$files_without_license" ]; then echo "Files without license headers:"; echo "$files_without_license"; echo "Consider adding license headers to these files"; fi; exit 0'
-  #   language: system
-  #   pass_filenames: false
+    # TODO: No idea how this works for now
+    # - id: license-check
+    #   name: Check license headers (informational)
+    #   entry: bash -c 'files_without_license=$(find src include tests -name "*.cpp" -o -name "*.hpp" | xargs grep -L "Copyright\|License\|SPDX" 2>/dev/null || true); if [ -n "$files_without_license" ]; then echo "Files without license headers:"; echo "$files_without_license"; echo "Consider adding license headers to these files"; fi; exit 0'
+    #   language: system
+    #   pass_filenames: false
 
-  # Does C++ have any good security audit tools?
-  # - id: security-audit
-  #   name: Security audit (check for common vulnerabilities)
-  #   entry: bash -c 'find src include tests -name "*.cpp" -o -name "*.hpp" | xargs grep -n "strcpy\|strcat\|sprintf\|gets\|system(" || echo "No obvious security issues found"'
-  #   language: system
-  #   pass_filenames: false
+    # Does C++ have any good security audit tools?
+    # - id: security-audit
+    #   name: Security audit (check for common vulnerabilities)
+    #   entry: bash -c 'find src include tests -name "*.cpp" -o -name "*.hpp" | xargs grep -n "strcpy\|strcat\|sprintf\|gets\|system(" || echo "No obvious security issues found"'
+    #   language: system
+    #   pass_filenames: false
 
-  # Built-in validators for common file types
+    # Built-in validators for common file types
 
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.6.0
-  hooks:
-  - id: check-yaml
-    name: Validate YAML files
-    stages: [ pre-commit ]
-  - id: check-json
-    name: Validate JSON files
-    stages: [ pre-commit ]
-  - id: check-toml
-    name: Validate TOML files
-    stages: [ pre-commit ]
-  - id: end-of-file-fixer
-    name: Fix end of files
-    stages: [ pre-commit ]
-    exclude: ^\.jscpd/|\.svg$
-  - id: trailing-whitespace
-    name: Trim trailing whitespace
-    stages: [ pre-commit ]
-    exclude: ^\.jscpd/|\.svg$
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+        name: Validate YAML files
+        stages: [pre-commit]
+      - id: check-json
+        name: Validate JSON files
+        stages: [pre-commit]
+      - id: check-toml
+        name: Validate TOML files
+        stages: [pre-commit]
+      - id: end-of-file-fixer
+        name: Fix end of files
+        stages: [pre-commit]
+        exclude: ^\.jscpd/|\.svg$
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+        stages: [pre-commit]
+        exclude: ^\.jscpd/|\.svg$
 
-# Pre-push hooks (run on push only)
-- repo: local
-  hooks:
-  - id: run-tests
-    name: Run all tests
-    entry: bash -c 'for bs in bazel cmake xmake; do mise run clean && mise run test --build-system $bs; done'
-    language: system
-    pass_filenames: false
-    stages: [ pre-push ]
+  # Pre-push hooks (run on push only)
+  - repo: local
+    hooks:
+      - id: run-tests
+        name: Run all tests
+        entry: bash -c 'for bs in bazel cmake xmake; do mise run clean && mise run test --build-system $bs; done'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
 
-  - id: build-check
-    name: Verify build succeeds
-    entry: bash -c 'for bs in bazel cmake xmake; do mise run clean && mise run build --build-system $bs; done'
-    language: system
-    pass_filenames: false
-    stages: [ pre-push ]
+      - id: build-check
+        name: Verify build succeeds
+        entry: bash -c 'for bs in bazel cmake xmake; do mise run clean && mise run build --build-system $bs; done'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
