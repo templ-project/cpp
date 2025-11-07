@@ -104,24 +104,45 @@ enter = "[ -f .venv/lib/python*/site-packages/pre-commit ] || uv sync"
 [env]
 _.python.venv = { path = ".venv", create = true } # Auto-create venv
 
-# Platform-specific LLVM paths and system variables
-LLVM_ROOT = '''{% if os() == 'windows' %}{{ config_root }}\.mise\installs\http-llvm-llvm-project\20.1.8{% endif %}'''
-# NOTE: LIB and LIBPATH break Bazel's Windows toolchain auto-detection
-# Commenting out until Bazel build is fixed or alternative solution found
-# LIB = '''{% if os() == 'windows' %}"{{ env.LLVM_ROOT }}\\lib"{% if env.LIB %};{{ env.LIB }}{% endif %}{% endif %}'''
-# LIBPATH = '''{% if os() == 'windows' %}"{{ env.LLVM_ROOT }}\\lib"{% if env.LIBPATH %};{{ env.LIBPATH }}{% endif %}{% endif %}'''
+# __TF_COMMAND_WRAPPER:
+#   sh: |
+#     echo '{{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command{{else}}bash -c{{end}}'
+# __TF_VAR_PREFIX:
+#   sh: |
+#     echo "{{if eq OS "windows"}}\${{else}}{{end}}"
+# __TF_DUMMY_SPACE: " "
+# __TF_HEADER_LINE: "=============================================================="
+# __TF_VALIDATION_CPP_BUILD_SYSTEMS:
+#   sh: |
+#     echo "bazel cmake xmake"
+# __TF_VALIDATION__CPP_COMPILERS:
+#   sh: |
+#     echo "clang++ {{if eq OS "windows"}}msvc{{else}}g++{{end}}"
 
-# Platform-specific SDK and toolchain paths
-SDKROOT = "{% if os() == 'macos' %}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% else %}{% endif %}"
-# Compiler flags for different platforms
-# NOTE: CFLAGS/CXXFLAGS break Bazel's Windows toolchain auto-detection
-# Commenting out until Bazel build is fixed or alternative solution found
-# CFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{%
-#               elif os() == 'linux' %}{% else %}/I"{{ env.LLVM_ROOT }}\\include"{% endif %}'''
-# CXXFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{%
-#                 elif os() == 'linux' %}{% else %}/I"{{ env.LLVM_ROOT }}\\include" /I"{{ env.LLVM_ROOT }}\\include\\c++\\v1"{% endif %}'''
-LDFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib{%
-                elif os() == 'linux' %}{% else %}-L"{{ env.LLVM_ROOT }}\lib"{% endif %}'''
+# # CPP_PROJECT_NAME: '{{default .CPP_PROJECT_NAME "cpp-template"}}'
+# # CPP_BUILD_SYSTEM: '{{default .CPP_BUILD_SYSTEM "cmake"}}' # bazel, cmake, xmake
+# # CPP_BUILD_DIR: '{{default .CPP_BUILD_DIR "build"}}'
+# # CPP_BUILD_TYPE: '{{default .CPP_BUILD_TYPE "Release"}}'
+# # CPP_COMPILER: '{{default .CPP_COMPILER "clang++"}}' # clang++, g++, msvc (windows)
+
+# # Platform-specific LLVM paths and system variables
+# LLVM_ROOT = '''{% if os() == 'windows' %}{{ config_root }}\.mise\installs\http-llvm-llvm-project\20.1.8{% endif %}'''
+# # NOTE: LIB and LIBPATH break Bazel's Windows toolchain auto-detection
+# # Commenting out until Bazel build is fixed or alternative solution found
+# # LIB = '''{% if os() == 'windows' %}"{{ env.LLVM_ROOT }}\\lib"{% if env.LIB %};{{ env.LIB }}{% endif %}{% endif %}'''
+# # LIBPATH = '''{% if os() == 'windows' %}"{{ env.LLVM_ROOT }}\\lib"{% if env.LIBPATH %};{{ env.LIBPATH }}{% endif %}{% endif %}'''
+
+# # Platform-specific SDK and toolchain paths
+# SDKROOT = "{% if os() == 'macos' %}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% else %}{% endif %}"
+# # Compiler flags for different platforms
+# # NOTE: CFLAGS/CXXFLAGS break Bazel's Windows toolchain auto-detection
+# # Commenting out until Bazel build is fixed or alternative solution found
+# # CFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{%
+# #               elif os() == 'linux' %}{% else %}/I"{{ env.LLVM_ROOT }}\\include"{% endif %}'''
+# # CXXFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{%
+# #                 elif os() == 'linux' %}{% else %}/I"{{ env.LLVM_ROOT }}\\include" /I"{{ env.LLVM_ROOT }}\\include\\c++\\v1"{% endif %}'''
+# LDFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib{%
+#                 elif os() == 'linux' %}{% else %}-L"{{ env.LLVM_ROOT }}\lib"{% endif %}'''
 
 
 ############################################################################

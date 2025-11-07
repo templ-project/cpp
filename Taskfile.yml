@@ -35,6 +35,15 @@ env:
   CMAKE_VS_GENERATOR:
     sh: |
       {{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command "(Get-ChildItem 'C:\Program Files*\Microsoft Visual Studio\*' -Directory | Sort-Object Name | Select-Object -First 1).Name | ForEach-Object { if (\$_ -eq '2022') { 'Visual Studio 17 2022' } elseif (\$_ -eq '2019') { 'Visual Studio 16 2019' } elseif (\$_ -eq '2017') { 'Visual Studio 15 2017' } else { 'Visual Studio 17 2022' } }"{{else}}echo ""{{end}}
+  # LLVM_ROOT:
+  #   sh: |
+  #     {{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command '(Get-Item (Get-Command clang++).Source).Directory.Parent.FullName'{{else}}dirname $(dirname $(which clang++)){{end}}
+  # SDKROOT:
+  #   sh: |
+  #     {{if eq OS "darwin"}}echo "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"{{else}}echo ""{{end}}
+  # LDFLAGS:
+  #   sh: |
+  #     {{if eq OS "darwin"}}echo "-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib"{{else if eq OS "linux"}}echo ""{{else}}LLVM_ROOT=$(powershell -ExecutionPolicy Bypass -Command '(Get-Item (Get-Command clang++).Source).Directory.Parent.FullName'); echo "-L\"$LLVM_ROOT/lib\""{{end}}
 
 tasks:
   # ==========================================================================
@@ -225,8 +234,7 @@ tasks:
     desc: "Format code and fix issues"
     cmds:
       - |
-        SCRIPT_ARGS="--fix"
-        python scripts/format.py $SCRIPT_ARGS
+        python scripts/format.py --fix
 
   format:check:
     desc: "Check code formatting without fixing"
@@ -242,12 +250,7 @@ tasks:
           CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
     cmds:
       - |
-        # Bazel generates compile_commands.json at project root, others use build dir
-        LINT_BUILD_DIR="{{.CPP_BUILD_DIR}}"
-        if [ "{{.CPP_BUILD_SYSTEM}}" = "bazel" ]; then
-            LINT_BUILD_DIR="."
-        fi
-        python scripts/lint.py --build-dir "$LINT_BUILD_DIR" --fix
+        python scripts/lint.py --build-dir "{{if eq .CPP_BUILD_SYSTEM "bazel"}}.{{else}}{{.CPP_BUILD_DIR}}{{end}}" --fix
 
   lint:check:
     desc: "Run linter without fixing"
@@ -258,12 +261,7 @@ tasks:
           CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
     cmds:
       - |
-        # Bazel generates compile_commands.json at project root, others use build dir
-        LINT_BUILD_DIR="{{.CPP_BUILD_DIR}}"
-        if [ "{{.CPP_BUILD_SYSTEM}}" = "bazel" ]; then
-            LINT_BUILD_DIR="."
-        fi
-        python scripts/lint.py --build-dir "$LINT_BUILD_DIR"
+        python scripts/lint.py --build-dir "{{if eq .CPP_BUILD_SYSTEM "bazel"}}.{{else}}{{.CPP_BUILD_DIR}}{{end}}"
 
   duplicate-check:
     desc: "Check for duplicate code using jscpd"
@@ -475,7 +473,7 @@ tasks:
         echo "🏃 Running application..."
         {{.__TF_COMMAND_WRAPPER}} '{{
           .__TF_VAR_PREFIX}}BUILD_PATH="{{if eq .CPP_BUILD_SYSTEM "bazel"}}bazel-out{{else}}{{.CPP_BUILD_DIR}}{{end}}";{{.__TF_DUMMY_SPACE}}{{
-            if ne OS "windows"}}eval $(find ./$BUILD_PATH/{{if eq .CPP_BUILD_SYSTEM "bazel"}}*-opt{{end}} -name {{.CPP_PROJECT_NAME}} | head -n 1){{
+            if ne OS "windows"}}eval $(find ./$BUILD_PATH/{{if eq .CPP_BUILD_SYSTEM "bazel"}}*-opt{{end}} -type f -name {{.CPP_PROJECT_NAME}} | head -n 1){{
             else}}(Get-ChildItem ./$BUILD_PATH{{if eq .CPP_BUILD_SYSTEM "bazel"}}/*-opt/bin{{end}} -Recurse -Filter {{
               .CPP_PROJECT_NAME}}.exe | Select-Object -First 1).FullName | ForEach-Object { & $_ }{{
             end}}'
@@ -556,37 +554,23 @@ tasks:
             echo $hl
             echo ""
             task validate:by:build-system:compiler \
+              CPP_PROJECT_NAME="cpp-template" \
               CPP_BUILD_SYSTEM="$bs" \
-              CPP_COMPILER="{{$compiler}}"
+              CPP_COMPILER="{{$compiler}}" \
+              CPP_BUILD_DIR="build"
           {{end}}
     desc: "Run CI pipeline for specific build system"
     silent: true
 
   validate:by:build-system:compiler:
     cmds:
+      - task: format
       - task: clean
-        vars:
-          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
       - task: build
-        vars:
-          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
-          CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
-          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
-          CPP_COMPILER: "{{.CPP_COMPILER}}"
-          CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+      - task: lint
       - task: run
-        vars:
-          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
-          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
-          CPP_COMPILER: "{{.CPP_COMPILER}}"
-          CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
       - task: clean
       - task: test
-        vars:
-          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
-          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
-          CPP_COMPILER: "{{.CPP_COMPILER}}"
-          CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
       - cmd: |
           echo ""
           echo "{{.__TF_HEADER_LINE}}"
