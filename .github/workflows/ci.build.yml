@@ -21,52 +21,103 @@ jobs:
       max-parallel: 1
       matrix:
         build_system: ${{ fromJSON(inputs.build_system) }}
+        task_manager:
+          # - mise
+          - task
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-tools
+      - run: sudo apt install -y build-essential
+        if: ${{ runner.os == 'Linux' }}
+      - run: brew install gcc lcov
+        if: ${{ runner.os == 'macOS' }}
 
       - name: Test Code Formatting
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise exec -- task format:check
+        run: |
+          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
+            mise exec -- task format:check
+          else
+            mise run format
+          fi
 
       - name: Lint Code
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise exec -- task clean lint:check CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+        run: |
+          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
+            mise exec -- task clean lint:check CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+          else
+            mise run clean && \
+              mise run lint --build-system ${{ matrix.build_system }}
+          fi
 
   test:
     runs-on: ${{ inputs.os }}
     strategy:
-      max-parallel: 1
       matrix:
         build_system: ${{ fromJSON(inputs.build_system) }}
+        task_manager:
+          # - mise
+          - task
+        compiler:
+          - clang++
+          - g++
+          - msvc
     needs: [lint]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-tools
 
       - name: Test
+        # Skip MSVC on non-Windows and g++ on Windows
+        if: |
+          (runner.os == 'Windows' && matrix.compiler != 'g++') ||
+          (runner.os != 'Windows' && matrix.compiler != 'msvc')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise exec -- task clean test CPP_BUILD_SYSTEM=${{ matrix.build_system }}
-
+        run: |
+          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
+            mise exec -- task clean test CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
+          else
+            mise run clean && \
+              mise run test --build-system ${{ matrix.build_system }} --compiler ${{ matrix.compiler }}
+          fi
   build:
     runs-on: ${{ inputs.os }}
     strategy:
       matrix:
         build_system: ${{ fromJSON(inputs.build_system) }}
+        task_manager:
+          # - mise
+          - task
+        compiler:
+          - clang++
+          - g++
+          - msvc
     needs: [test]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-tools
 
       - name: Build
+        # Skip MSVC on non-Windows and g++ on Windows
+        if: |
+          (runner.os == 'Windows' && matrix.compiler != 'g++') ||
+          (runner.os != 'Windows' && matrix.compiler != 'msvc')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise exec -- task clean build CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+        run: |
+          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
+            mise exec -- task clean build CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
+          else
+            mise run clean && \
+              mise run build --build-system ${{ matrix.build_system }} --compiler ${{ matrix.compiler }}
+          fi
 
   duplicate-check:
+    if: ${{ inputs.os == 'macos-latest' }}
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/setup-node@v5

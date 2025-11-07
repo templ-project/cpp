@@ -104,46 +104,11 @@ enter = "[ -f .venv/lib/python*/site-packages/pre-commit ] || uv sync"
 [env]
 _.python.venv = { path = ".venv", create = true } # Auto-create venv
 
-# __TF_COMMAND_WRAPPER:
-#   sh: |
-#     echo '{{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command{{else}}bash -c{{end}}'
-# __TF_VAR_PREFIX:
-#   sh: |
-#     echo "{{if eq OS "windows"}}\${{else}}{{end}}"
-# __TF_DUMMY_SPACE: " "
-# __TF_HEADER_LINE: "=============================================================="
-# __TF_VALIDATION_CPP_BUILD_SYSTEMS:
-#   sh: |
-#     echo "bazel cmake xmake"
-# __TF_VALIDATION__CPP_COMPILERS:
-#   sh: |
-#     echo "clang++ {{if eq OS "windows"}}msvc{{else}}g++{{end}}"
+__MS_COMMAND_WRAPPER = '{% if os() == "windows" %}powershell -ExecutionPolicy Bypass -Command{% else %}bash -c{% endif %}'
+__MS_VAR_PREFIX = '{% if os() == "windows" %}${% endif %}'
+__MS_DUMMY_SPACE = " "
 
-# # CPP_PROJECT_NAME: '{{default .CPP_PROJECT_NAME "cpp-template"}}'
-# # CPP_BUILD_SYSTEM: '{{default .CPP_BUILD_SYSTEM "cmake"}}' # bazel, cmake, xmake
-# # CPP_BUILD_DIR: '{{default .CPP_BUILD_DIR "build"}}'
-# # CPP_BUILD_TYPE: '{{default .CPP_BUILD_TYPE "Release"}}'
-# # CPP_COMPILER: '{{default .CPP_COMPILER "clang++"}}' # clang++, g++, msvc (windows)
-
-# # Platform-specific LLVM paths and system variables
-# LLVM_ROOT = '''{% if os() == 'windows' %}{{ config_root }}\.mise\installs\http-llvm-llvm-project\20.1.8{% endif %}'''
-# # NOTE: LIB and LIBPATH break Bazel's Windows toolchain auto-detection
-# # Commenting out until Bazel build is fixed or alternative solution found
-# # LIB = '''{% if os() == 'windows' %}"{{ env.LLVM_ROOT }}\\lib"{% if env.LIB %};{{ env.LIB }}{% endif %}{% endif %}'''
-# # LIBPATH = '''{% if os() == 'windows' %}"{{ env.LLVM_ROOT }}\\lib"{% if env.LIBPATH %};{{ env.LIBPATH }}{% endif %}{% endif %}'''
-
-# # Platform-specific SDK and toolchain paths
-# SDKROOT = "{% if os() == 'macos' %}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% else %}{% endif %}"
-# # Compiler flags for different platforms
-# # NOTE: CFLAGS/CXXFLAGS break Bazel's Windows toolchain auto-detection
-# # Commenting out until Bazel build is fixed or alternative solution found
-# # CFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{%
-# #               elif os() == 'linux' %}{% else %}/I"{{ env.LLVM_ROOT }}\\include"{% endif %}'''
-# # CXXFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{%
-# #                 elif os() == 'linux' %}{% else %}/I"{{ env.LLVM_ROOT }}\\include" /I"{{ env.LLVM_ROOT }}\\include\\c++\\v1"{% endif %}'''
-# LDFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib{%
-#                 elif os() == 'linux' %}{% else %}-L"{{ env.LLVM_ROOT }}\lib"{% endif %}'''
-
+SDKROOT='{% if os() == "macos"  %}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% endif %}'
 
 ############################################################################
 # Task definitions.                                                        #
@@ -153,13 +118,19 @@ _.python.venv = { path = ".venv", create = true } # Auto-create venv
 # Build Tasks
 # ==========================================================================
 
+[tasks."print:env"]
+description = "Print current build environment variables"
+run = '{% if os() != "windows" %}env{% else %}{{env.__MS_COMMAND_WRAPPER}}"Get-ChildItem Env:"{% endif %}'
+
 [tasks.build]
 description = "Build Project"
 # outputs = []
 run = '''
-set -ex
+{% if os() != "windows" %}set -ex;{% endif %}
 
-mise run build:${usage_build_system?}
+mise run build:${usage_build_system?} --build-type ${usage_build_type?} \
+  --build-dir ${usage_build_dir?} --compiler ${usage_compiler?} \
+  --project-name ${usage_project_name?}
 '''
 sources = [
   "src/**/*.cpp",
@@ -180,22 +151,18 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 description = "Build Project Using Bazel"
 outputs = ["bazel-bin/${usage_project_name?}"]
 run = '''
-set -ex
+{% if os() != "windows" %}set -ex;{% endif %}
+mise run print:env
 
-# Compile templates first
 python scripts/compile_templates.py --build-system bazel --compiler ${usage_compiler?}
 
-BAZEL_CONFIG=""
-if [ "${usage_build_type?}" = "Debug" ]; then
-    BAZEL_CONFIG="--compilation_mode=dbg"
-else
-    BAZEL_CONFIG="--compilation_mode=opt"
-fi
-
+BAZEL_CONFIG="{% if "${usage_build_type?}" == "Debug" %}--compilation_mode=dbg{% else %}--compilation_mode=opt{% endif %}"
 bazel build //:${usage_project_name?} $BAZEL_CONFIG
 
 # Generate compile_commands.json for clang-tidy using Hedron
+{% if "${usage_compiler?}" != "msvc" %}
 bazel run @hedron_compile_commands//:refresh_all
+{% endif %}
 '''
 sources = ["BUILD", "WORKSPACE", ".bazelrc"]
 usage = '''
@@ -212,7 +179,8 @@ outputs = [
   "${usage_build_dir?}/compile_commands.json",
 ]
 run = '''
-set -ex
+{% if os() != "windows" %}set -ex;{% endif %}
+mise run print:env
 
 # Compile templates first
 python scripts/compile_templates.py --build-system cmake --compiler ${usage_compiler?}
@@ -242,7 +210,8 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 description = "Build Project Using XMake"
 outputs = [".xmake/cache/config", "${usage_build_dir}/compile_commands.json"]
 run = '''
-set -ex
+{% if os() != "windows" %}set -ex;{% endif %}
+mise run print:env
 
 # Compile templates first
 python scripts/compile_templates.py --build-system xmake --compiler ${usage_compiler?}

@@ -38,9 +38,9 @@ env:
   # LLVM_ROOT:
   #   sh: |
   #     {{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command '(Get-Item (Get-Command clang++).Source).Directory.Parent.FullName'{{else}}dirname $(dirname $(which clang++)){{end}}
-  # SDKROOT:
-  #   sh: |
-  #     {{if eq OS "darwin"}}echo "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"{{else}}echo ""{{end}}
+  SDKROOT:
+    sh: |
+      echo "{{if eq OS "darwin"}}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{{else}}$SDKROOT{{end}}"
   # LDFLAGS:
   #   sh: |
   #     {{if eq OS "darwin"}}echo "-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib"{{else if eq OS "linux"}}echo ""{{else}}LLVM_ROOT=$(powershell -ExecutionPolicy Bypass -Command '(Get-Item (Get-Command clang++).Source).Directory.Parent.FullName'); echo "-L\"$LLVM_ROOT/lib\""{{end}}
@@ -203,29 +203,6 @@ tasks:
 
         find . -type d -name "bazel-*" | while read d; do rm -rf "$d"; done
 
-  # docs:
-  #   desc: "Generate documentation with Doxygen"
-  #   deps:
-  #     - task: which
-  #       vars:
-  #         COMMAND: "doxygen"
-  #   cmds:
-  #     - doxygen Doxyfile
-
-  # duplicate-check:
-  #   desc: "Check for duplicate code using jscpd"
-  #   deps:
-  #     - task: which
-  #       vars:
-  #         COMMAND: "node"
-  #   cmds:
-  #     - cmd: |
-  #         [ ! -d ./node_modules ] && npm install jscpd  @jscpd/badge-reporter
-
-  #         mise exec -- npx jscpd src/ include/
-
-  #         git add .jscpd/jscpd-badge.svg 2>/dev/null || true
-
   # ============================================================================
   # Code Quality Tasks
   # ============================================================================
@@ -283,13 +260,10 @@ tasks:
       - task: test:{{.CPP_BUILD_SYSTEM}}
 
   test:bazel:
-    desc: 'Run tests with Bazel{{if and (ne OS "windows") (eq .CPP_COMPILER "g++")}} and generate coverage{{end}}'
+    desc: 'Run tests with Bazel{{if and (eq OS "linux") (eq .CPP_COMPILER "g++")}} and generate coverage{{end}}'
     cmds:
       - cmd: |
-          {{if eq OS "windows"}}
-          echo "✅ Running tests (coverage not supported on Windows)..."
-          bazel test //tests/... --test_output=errors
-          {{else}}
+          {{if eq OS "linux"}}
             {{if eq .CPP_COMPILER "g++"}}
           echo "📊 Running tests with coverage for g++..."
           bazel coverage //tests/... --config=coverage --nocache_test_results
@@ -297,6 +271,9 @@ tasks:
           echo "✅ Running tests (coverage only supported with g++)..."
           bazel test //tests/... --test_output=errors
             {{end}}
+          {{else}}
+          echo "✅ Running tests (coverage only supported on Linux with g++)..."
+          bazel test //tests/... --test_output=errors
           {{end}}
       - task: test:gen-coverage
         vars:
@@ -343,11 +320,11 @@ tasks:
             {{end}}
           {{end}}
         platforms: [windows]
-      # Bazel: g++ only, use lcov
+      # Bazel: g++ on Linux only, use lcov
       - cmd: |
           {{if eq .CPP_BUILD_SYSTEM "bazel"}}
-            {{if ne .CPP_COMPILER "g++"}}
-          echo "⚠️ Bazel coverage is only supported with g++. Skipping."
+            {{if or (ne .CPP_COMPILER "g++") (ne OS "linux")}}
+          echo "⚠️ Bazel coverage is only supported with g++ on Linux. Skipping."
           echo ""
           exit 0
             {{end}}
@@ -601,12 +578,10 @@ tasks:
         echo "🪝 Installing pre-commit hooks..."
         pre-commit install
         echo "✓ Python environment ready"
+
   # valgrind:
   #   desc: "Run application with Valgrind"
   #   deps:
-  #     - task: which
-  #       vars:
-  #         COMMAND: "valgrind"
   #     - task: build
   #       vars: { CPP_BUILD_TYPE: "Debug" }
   #   cmds:

@@ -5,7 +5,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   # Validation & Build matrix for different platforms and configurations
@@ -15,8 +15,8 @@ jobs:
       matrix:
         os:
           - macos-latest
-          # - ubuntu-latest
-          # - windows-latest
+          - ubuntu-latest
+          - windows-latest
     uses: ./.github/workflows/ci.build.yml
     with:
       os: ${{ matrix.os }}

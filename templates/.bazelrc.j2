@@ -54,9 +54,12 @@ build:release --copt=-DNDEBUG
 build:release --strip=always
 
 # Coverage configuration
-# NOTE: `bazel coverage` is only supported with g++ on Linux/macOS.
-# LLVM/Clang and MSVC are not supported due to incompatible coverage format.
-{% if os() != 'windows' and compiler == 'g++' %}
+# NOTE: `bazel coverage` is only supported with g++ on Linux.
+# macOS and Windows are not supported due to toolchain limitations.
+# - macOS: Bazel uses Apple's linker which doesn't support GCC's gcov properly
+# - LLVM/Clang: incompatible coverage format
+# - MSVC: incompatible coverage format
+{% if os() == 'linux' and compiler == 'g++' %}
 # Use gcc/gcov for coverage - requires manual flags as Bazel doesn't auto-instrument C++
 build:coverage --copt=-g
 build:coverage --copt=-O0
