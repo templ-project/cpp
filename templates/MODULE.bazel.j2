@@ -3,6 +3,10 @@ module(
     version = "1.0.0",
 )
 
+{% if cpp_compiler is defined and cpp_compiler == "g++" %}
+register_toolchains("//toolchain:toolchain")
+{% endif %}
+
 # Google Test dependency via Bazel Central Registry
 bazel_dep(name = "googletest", version = "1.14.0")
 

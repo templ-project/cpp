@@ -39,8 +39,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Debug flags with sanitizers (works on all platforms with Clang)
     set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
     if(WIN32)
-        # Windows requires different sanitizer syntax
-        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
+        # Windows: Skip sanitizers for now due to runtime library dependencies
+        # TODO: Enable when ASAN runtime libraries are properly configured
+        # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
     else()
         # Linux/macOS: enable both address and undefined behavior sanitizers
         set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address,undefined")

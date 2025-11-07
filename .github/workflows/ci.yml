@@ -2,9 +2,9 @@ name: C++ CI
 
 on:
   push:
-    branches: [main, develop, mise_isolation]
+    branches: [main, develop]
   pull_request:
-    branches: [main, develop, mise_isolation]
+    branches: [main, develop]
   workflow_dispatch:
 
 jobs:

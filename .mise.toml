@@ -19,7 +19,8 @@ version = "20.1.8"
 [tools."http:llvm/llvm-project".platforms]
 linux-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/LLVM-{version}-Linux-X64.tar.xz" }
 macos-arm64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/LLVM-{version}-macOS-ARM64.tar.xz" }
-windows-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/LLVM-{version}-win64.exe" }
+windows-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/clang+llvm-{version}-x86_64-pc-windows-msvc.tar.xz" }
+# windows-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/LLVM-{version}-win64.exe" }
 
 # ==========================================================================
 # Build Tools
@@ -34,7 +35,7 @@ bin = "bazel"
 # TODO: Need a Linux distro to test this
 # TODO: Need a Windows distro to test this
 [tools."github:bazelbuild/bazel".platforms]
-linux-x64 = { asset_pattern = "bazel-*-linux-88_x64" }
+linux-x64 = { asset_pattern = "bazel-*-linux-x86_64" }
 macos-arm64 = { asset_pattern = "bazel-*-darwin-arm64" }
 windows-x64 = { asset_pattern = "bazel-*-windows-x86_64.exe", bin = "bazel.exe" }
 
@@ -58,7 +59,7 @@ bin = "xmake"
 
 # TODO: Need a Linux distro to test this
 [tools."github:xmake-io/xmake".platforms]
-linux-x64 = { asset_pattern = "xmake-bundle-v*.linux.x64" }
+linux-x64 = { asset_pattern = "xmake-bundle-v*.linux.x86_64" }
 macos-arm64 = { asset_pattern = "xmake-bundle-v*.macos.arm64" }
 windows-x64 = { asset_pattern = "xmake-bundle-v*.win64.exe", bin = "xmake.exe" }
 
@@ -101,11 +102,23 @@ enter = "[ -f .venv/lib/python*/site-packages/pre-commit ] || uv sync"
 
 # Environment variables
 [env]
-_.python.venv = { path = ".venv", create = true }                                                                                                                                                   # Auto-create venv
-SDKROOT = "{% if os() == 'macos' %}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% else %}{{env.SDKROOT}}{% endif %}"
-CFLAGS = "{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% else %}{{env.CFLAGS}}{% endif %}"
-CXXFLAGS = "{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% else %}{{env.CXXFLAGS}}{% endif %}"
-LDFLAGS = "{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib{% else %}{{env.LDFLAGS}}{% endif %}"
+_.python.venv = { path = ".venv", create = true } # Auto-create venv
+
+# Platform-specific LLVM paths and system variables
+LLVM_ROOT = '''{% if os() == 'windows' %}{{ config_root }}\.mise\installs\http-llvm-llvm-project\20.1.8{% endif %}'''
+LIB = '''{% if os() == 'windows' %}"{{ env.LLVM_ROOT }}\\lib"{% if env.LIB %};{{ env.LIB }}{% endif %}{% endif %}'''
+LIBPATH = '''{% if os() == 'windows' %}"{{ env.LLVM_ROOT }}\\lib"{% if env.LIBPATH %};{{ env.LIBPATH }}{% endif %}{% endif %}'''
+
+# Platform-specific SDK and toolchain paths
+SDKROOT = "{% if os() == 'macos' %}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% else %}{% endif %}"
+# Compiler flags for different platforms
+CFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{%
+              elif os() == 'linux' %}{% else %}/I"{{ env.LLVM_ROOT }}\\include"{% endif %}'''
+CXXFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{%
+                elif os() == 'linux' %}{% else %}/I"{{ env.LLVM_ROOT }}\\include" /I"{{ env.LLVM_ROOT }}\\include\\c++\\v1"{% endif %}'''
+LDFLAGS = '''{% if os() == 'macos' %}-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib{%
+                elif os() == 'linux' %}{% else %}-L"{{ env.LLVM_ROOT }}\lib"{% endif %}'''
+
 
 ############################################################################
 # Task definitions.                                                        #
@@ -653,7 +666,7 @@ flag "-p --project-name <name>" env="CPP_PROJECT_NAME" help="Project name" defau
 [tasks."uv:refresh"]
 description = "Refresh all Python packages (update dependencies)"
 run = """
-set -ex
+{% if os() != "windows" %}set -ex{% endif %}
 
 echo "🔄 Refreshing Python packages..."
 uv sync --upgrade
@@ -663,7 +676,7 @@ echo "✓ Packages refreshed"
 [tasks."uv:sync"]
 description = "Install Python dependencies (including pre-commit)"
 run = """
-set -ex
+{% if os() != "windows" %}set -ex{% endif %}
 
 echo "📦 Installing Python dependencies..."
 uv sync
