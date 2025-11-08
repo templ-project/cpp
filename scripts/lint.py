@@ -82,6 +82,12 @@ def lint_single_file(file: Path, fix: bool, build_dir: str = 'build') -> Tuple[b
     try:
         args = ['clang-tidy', '-p', build_dir, '--config-file=.clang-tidy', '--quiet']
 
+        # On Windows with Bazel, suppress MSVC compatibility warnings from compile_commands.json
+        if sys.platform == 'win32' and Path(build_dir).name != 'build':
+            args.extend([
+                '--checks=-clang-diagnostic-builtin-macro-redefined,-clang-diagnostic-unused-command-line-argument'
+            ])
+
         if fix:
             args.append('--fix')
 

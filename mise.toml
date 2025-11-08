@@ -1,3 +1,12 @@
+[settings]
+# TODO: need experimental mode to support lock file -> can be solved using mise.local.toml
+# TRICKY:
+# This one breaks tools.http:llvm/llvm-project installation due to mise bug probably
+# experimental = true
+# This one I needs to be tested; but I haven't seen it working last time
+lockfile = true
+# TRICKYend
+
 ############################################################################
 # Tools Configuration                                                      #
 ############################################################################
@@ -14,13 +23,10 @@
 [tools."http:llvm/llvm-project"]
 version = "20.1.8"
 
-# TODO: Need a Linux distro to test this
-# TODO: Need a Windows distro to test this
 [tools."http:llvm/llvm-project".platforms]
 linux-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/LLVM-{version}-Linux-X64.tar.xz" }
 macos-arm64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/LLVM-{version}-macOS-ARM64.tar.xz" }
 windows-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/clang+llvm-{version}-x86_64-pc-windows-msvc.tar.xz" }
-# windows-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/LLVM-{version}-win64.exe" }
 
 # ==========================================================================
 # Build Tools
@@ -32,8 +38,6 @@ windows-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/ll
 version = "8"
 bin = "bazel"
 
-# TODO: Need a Linux distro to test this
-# TODO: Need a Windows distro to test this
 [tools."github:bazelbuild/bazel".platforms]
 linux-x64 = { asset_pattern = "bazel-*-linux-x86_64" }
 macos-arm64 = { asset_pattern = "bazel-*-darwin-arm64" }
@@ -107,8 +111,9 @@ _.python.venv = { path = ".venv", create = true } # Auto-create venv
 __MS_COMMAND_WRAPPER = '{% if os() == "windows" %}powershell -ExecutionPolicy Bypass -Command{% else %}bash -c{% endif %}'
 __MS_VAR_PREFIX = '{% if os() == "windows" %}${% endif %}'
 __MS_DUMMY_SPACE = " "
+__MS_CMD_SEP = " && "
 
-SDKROOT='{% if os() == "macos"  %}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% endif %}'
+SDKROOT = '{% if os() == "macos"  %}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{% endif %}'
 
 ############################################################################
 # Task definitions.                                                        #
@@ -160,9 +165,7 @@ BAZEL_CONFIG="{% if "${usage_build_type?}" == "Debug" %}--compilation_mode=dbg{%
 bazel build //:${usage_project_name?} $BAZEL_CONFIG
 
 # Generate compile_commands.json for clang-tidy using Hedron
-{% if "${usage_compiler?}" != "msvc" %}
 bazel run @hedron_compile_commands//:refresh_all
-{% endif %}
 '''
 sources = ["BUILD", "WORKSPACE", ".bazelrc"]
 usage = '''
@@ -678,3 +681,8 @@ echo "🪝 Installing pre-commit hooks..."
 pre-commit install
 echo "✓ Python environment ready"
 """
+run_windows = """echo 📦 Installing Python dependencies... {{ env.__MS_CMD_SEP
+}} uv sync {{ env.__MS_CMD_SEP
+}} echo 🪝 Installing pre-commit hooks... {{ env.__MS_CMD_SEP
+}} pre-commit install {{ env.__MS_CMD_SEP
+}} echo ✓ Python environment ready"""

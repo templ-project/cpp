@@ -3,11 +3,11 @@ build --repo_env=BAZEL_LLVM={{ os_env("LLVM_ROOT") }}
 
 # Common C++ settings
 {% if os() == 'windows' %}
-# Windows uses MSVC-style flags
+# Windows uses MSVC-style flags (both MSVC and clang-cl understand these)
 build --cxxopt=/std:c++20
 build --cxxopt=/W3
 {% else %}
-# Unix-style flags for other platforms
+# Unix-style flags for Clang/GCC on Linux/macOS
 build --cxxopt=-std=c++20
 build --cxxopt=-Wall
 build --cxxopt=-Wextra

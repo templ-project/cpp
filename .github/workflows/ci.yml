@@ -14,9 +14,9 @@ jobs:
     strategy:
       matrix:
         os:
-          # - macos-latest
+          - macos-latest
           - ubuntu-latest
-          # - windows-latest
+          - windows-latest
     uses: ./.github/workflows/ci.build.yml
     with:
       os: ${{ matrix.os }}
@@ -45,3 +45,6 @@ jobs:
     with:
       version_tag: ${{ needs.version.outputs.version_tag }}
       prerelease: false
+
+  # Note: Automatic retries are handled by the ci.retry.yml workflow
+  # It monitors this workflow and automatically retries failed jobs up to 3 times
