@@ -27,10 +27,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-tools
-      - run: sudo apt install -y build-essential
-        if: ${{ runner.os == 'Linux' }}
-      - run: brew install gcc lcov
-        if: ${{ runner.os == 'macOS' }}
 
       - name: Test Code Formatting
         env:
@@ -41,6 +37,7 @@ jobs:
           else
             mise run format
           fi
+        shell: bash
 
       - name: Lint Code
         env:
@@ -52,6 +49,7 @@ jobs:
             mise run clean && \
               mise run lint --build-system ${{ matrix.build_system }}
           fi
+        shell: bash
 
   test:
     runs-on: ${{ inputs.os }}
@@ -84,6 +82,8 @@ jobs:
             mise run clean && \
               mise run test --build-system ${{ matrix.build_system }} --compiler ${{ matrix.compiler }}
           fi
+        shell: bash
+
   build:
     runs-on: ${{ inputs.os }}
     strategy:
@@ -115,6 +115,7 @@ jobs:
             mise run clean && \
               mise run build --build-system ${{ matrix.build_system }} --compiler ${{ matrix.compiler }}
           fi
+        shell: bash
 
   duplicate-check:
     if: ${{ inputs.os == 'macos-latest' }}

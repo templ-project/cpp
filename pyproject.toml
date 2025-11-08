@@ -32,7 +32,7 @@ Issues = "https://github.com/templ-project/cpp/issues"
 bootstrap = "_install.bootstrap:main"
 
 [project.optional-dependencies]
-dev = ["pre-commit>=3.5.0", "gcovr>=7.0", "ninja>=1.11.0"]
+dev = ["pre-commit>=3.5.0", "gcovr>=7.0", "ninja>=1.11.0", "jinja2>=3.1.0"]
 docs = [
   "mkdocs>=1.5.0",
   "mkdocs-material>=9.5.0",
@@ -45,6 +45,7 @@ dev-dependencies = [
   "pre-commit>=3.5.0",
   "gcovr>=7.0",
   "ninja>=1.11.0",
+  "jinja2>=3.1.0",
   "mkdocs>=1.5.0",
   "mkdocs-material>=9.5.0",
   "mkdocstrings[python]>=0.24.0",

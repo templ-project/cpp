@@ -9,12 +9,21 @@ runs:
     - name: Install Mise (Darwin & Linux)
       if: ${{ runner.os != 'Windows' }}
       shell: bash
-      run: curl https://mise.run | sh
+      run: |
+        curl https://mise.run | sh
+        echo "eval \"\$(/Users/runner/.local/bin/mise activate bash)\"" >> ~/.bashrc
+        mise activate
+        mise self-update
+        mise --version
 
     - name: Install Mise (Windows)
       if: ${{ runner.os == 'Windows' }}
       shell: pwsh
-      run: winget install --id=jdx.mise -e --force --accept-source-agreements
+      run: |
+        choco install mise
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "mise self-update"
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "mise --version"
+
 
     - uses: actions/cache@v4
       with:
@@ -23,6 +32,14 @@ runs:
           ~/.local/share/mise
           ~/.cache/mise
           ~/.venv
+
+    - run: sudo apt install -y build-essential lcov
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+
+    - run: brew install gcc lcov
+      if: ${{ runner.os == 'macOS' }}
+      shell: bash
 
     - name: Install mise tools
       shell: bash
