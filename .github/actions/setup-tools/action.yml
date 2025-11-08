@@ -14,7 +14,7 @@ runs:
     - name: Install Mise (Windows)
       if: ${{ runner.os == 'Windows' }}
       shell: pwsh
-      run: winget install --id=jdx.mise -e --force
+      run: winget install --id=jdx.mise -e --force --accept-source-agreements
 
     - uses: actions/cache@v4
       with:
