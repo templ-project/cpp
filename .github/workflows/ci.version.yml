@@ -2,12 +2,6 @@ name: CI » Version
 
 on:
   workflow_call:
-    inputs:
-      pr_auto_merge:
-        description: "Auto-merge the version bump PR"
-        required: false
-        type: boolean
-        default: false
     secrets:
       GH_TOKEN:
         description: "GitHub token for version bump and PR creation"
@@ -26,11 +20,7 @@ jobs:
     outputs:
       version_tag: ${{ steps.bump.outputs.tag }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GH_TOKEN }}
+      - uses: actions/checkout@v4
 
       - name: Bump version with Bumpalicious
         id: bump
@@ -38,8 +28,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pr: "true"
-          pr_auto_merge: ${{ inputs.pr_auto_merge }}
-          pr_message: "chore: version bump"
           workspaces: ".:text"
 
       - name: Output new version

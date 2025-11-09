@@ -1,10 +1,10 @@
 name: CI
 
 on:
-  # push:
-  #   branches: [main, develop]
-  # pull_request:
-  #   branches: [main, develop]
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
   workflow_dispatch: {}
 
 jobs:
@@ -39,8 +39,6 @@ jobs:
       pull-requests: write
     secrets:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-    with:
-      pr_auto_merge: false
 
   # Release (only on main branch push after version bump)
   release:
