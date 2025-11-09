@@ -8,28 +8,28 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  # # Validation & Build matrix for different platforms and configurations
-  # build:
-  #   name: Build ${{ matrix.os }}
-  #   if: |
-  #     !startsWith(github.event.head_commit.message, 'chore: version update')
-  #   strategy:
-  #     matrix:
-  #       os:
-  #         - macos-latest
-  #         - ubuntu-latest
-  #         - windows-latest
-  #   uses: ./.github/workflows/ci.build.yml
-  #   with:
-  #     os: ${{ matrix.os }}
-  #     build_system: '["bazel", "xmake", "cmake"]'
+  # Validation & Build matrix for different platforms and configurations
+  build:
+    name: Build ${{ matrix.os }}
+    if: |
+      !startsWith(github.event.head_commit.message, 'chore: version update') && 1 == 0
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+    uses: ./.github/workflows/ci.build.yml
+    with:
+      os: ${{ matrix.os }}
+      build_system: '["bazel", "xmake", "cmake"]'
 
   # Version bump (only on main branch push, uses conventional commits)
   version:
     name: Bump Version
     if: |
       always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
-    # needs: [build]
+    needs: [build]
     uses: ./.github/workflows/ci.version.yml
     permissions:
       contents: write
