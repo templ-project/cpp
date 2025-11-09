@@ -21,14 +21,14 @@ jobs:
       version_tag: ${{ steps.bump.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Bump version with Bumpalicious
         id: bump
-        # uses: dragoscops/bumpalicious@v3
-        uses: dragoscops/bumpalicious@main3
+        uses: dragoscops/bumpalicious@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          pr: "true"
           workspaces: ".:text"
 
       - name: Output new version

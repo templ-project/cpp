@@ -28,9 +28,7 @@ jobs:
   version:
     name: Bump Version
     if: |
-      github.event_name == 'push'
-      && github.ref == 'refs/heads/main'
-    # && (needs.build.result == 'success' || needs.build.result == 'skipped')
+      always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
     # needs: [build]
     uses: ./.github/workflows/ci.version.yml
     permissions:
