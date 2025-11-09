@@ -36,7 +36,7 @@ jobs:
         id: bump
         uses: dragoscops/bumpalicious@v3
         with:
-          github_token: ${{ secrets.GH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           pr: "true"
           pr_auto_merge: ${{ inputs.pr_auto_merge }}
           pr_message: "chore: version bump"
