@@ -40,7 +40,7 @@ jobs:
   release:
     name: Create Release
     if: |
-      always() && needs.version.result == 'success'
+      always() && needs.version.result == 'success' && needs.version.outputs.tag != ''
     needs: [version]
     uses: ./.github/workflows/ci.release.yml
     permissions:

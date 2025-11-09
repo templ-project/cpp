@@ -30,6 +30,7 @@ jobs:
         with:
           github_token: ${{ secrets.GH_TOKEN }}
           workspaces: ".:text"
+          pr: true
 
       - name: Output new version
         run: |

@@ -26,6 +26,11 @@ backend = "core:python"
 version = "0.9.8"
 backend = "aqua:astral-sh/uv"
 
+[tools.uv.platforms.macos-arm64]
+checksum = "sha256:c021ce28988acbbfcb496e68cd9f2f6ba6401cc6d3292a5d25313873f825e002"
+size = 18245333
+url = "https://github.com/astral-sh/uv/releases/download/0.9.8/uv-aarch64-apple-darwin.tar.gz"
+
 [tools.uv.platforms.windows-x64]
 checksum = "sha256:bb94629392b11d49f202e748d5842a0c89ebe570c152ad8ea1425ece01dc4222"
 size = 20840146
