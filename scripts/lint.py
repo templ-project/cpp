@@ -82,6 +82,12 @@ def lint_single_file(file: Path, fix: bool, build_dir: str = 'build') -> Tuple[b
     try:
         args = ['clang-tidy', '-p', build_dir, '--config-file=.clang-tidy', '--quiet']
 
+        # On Windows with Bazel, suppress MSVC compatibility warnings from compile_commands.json
+        if sys.platform == 'win32' and Path(build_dir).name != 'build':
+            args.extend([
+                '--checks=-clang-diagnostic-builtin-macro-redefined,-clang-diagnostic-unused-command-line-argument'
+            ])
+
         if fix:
             args.append('--fix')
 
@@ -197,10 +203,10 @@ def lint_files(files: List[Path], fix: bool = False, build_dir: str = 'build') -
     if not fix and issues_count > 0:
         if use_color:
             print(f"{Colors.YELLOW}⚠ {issues_count} file(s) have linting issues{Colors.RESET}")
-            print(f"{Colors.DIM}Run 'task lint' to attempt auto-fix.{Colors.RESET}")
+            print(f"{Colors.DIM}Use '--fix' to attempt auto-fix.{Colors.RESET}")
         else:
             print(f"! {issues_count} file(s) have linting issues")
-            print("Run 'task lint' to attempt auto-fix.")
+            print("Use '--fix' to attempt auto-fix.")
         return 1
 
     if fix and issues_count > 0:

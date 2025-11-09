@@ -8,82 +8,137 @@ on:
         required: false
         type: string
         default: "ubuntu-latest"
-      llvm_versions:
-        description: "LLVM versions to test (JSON array)"
-        required: false
-        type: string
-        # https://releases.llvm.org/
-        # https://github.com/KyleMayes/install-llvm-action/blob/master/assets.json
-        # default: '["20.1.7", "19.1.7", "18.1.8", "17.0.5", "16.0.4"]'
-        default: '["20"]'
       build_system:
-        description: "Build system to use (JSON array)"
+        description: "Build system to use"
         required: false
         type: string
-        default: '["cmake", "xmake"]'
+        default: '["bazel", "cmake", "xmake"]'
 
 jobs:
-  validate:
+  # Setup job runs once to populate mise cache for parallel jobs
+  setup:
     runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
+
+  build:
+    runs-on: ${{ inputs.os }}
+    needs: [setup]
     strategy:
       matrix:
-        llvm_version: ${{ fromJSON(inputs.llvm_versions) }}
         build_system: ${{ fromJSON(inputs.build_system) }}
+        task_manager:
+          # - mise
+          - task
+        compiler:
+          - clang++
+          - g++
+          - msvc
     steps:
-      - if: ${{ runner.os == 'macOS' }}
-        name: Install LLVM on macOS
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
+
+      - name: Build
+        # Skip MSVC on non-Windows and g++ on Windows
+        if: |
+          (runner.os == 'Windows' && matrix.compiler != 'g++') ||
+          (runner.os != 'Windows' && matrix.compiler != 'msvc')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONIOENCODING: utf-8
         run: |
-          brew install llvm@${{ matrix.llvm_version }}
-          echo "PATH=$(brew --prefix llvm@${{ matrix.llvm_version }})/bin;$PATH" >> $GITHUB_ENV
-          echo "LDFLAGS=-L$(brew --prefix llvm@${{ matrix.llvm_version }})/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I$(brew --prefix llvm@${{ matrix.llvm_version }})/include" >> $GITHUB_ENV
+          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
+            mise exec -- task clean build CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
+          else
+            mise run clean && \
+              mise run build --build-system ${{ matrix.build_system }} --compiler ${{ matrix.compiler }}
+          fi
+        shell: bash
 
-      - if: ${{ runner.os != 'macOS' }}
-        uses: ZhongRuoyu/setup-llvm@v0
-        with:
-          llvm-version: ${{ matrix.llvm_version }}
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Linux' }}
-        run: |
-          sudo apt update && sudo apt install -y cmake
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'macOS' }}
-        run: |
-          brew install cmake
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Windows' }}
-        run: |
-          choco install cmake
-
-      - if: ${{ matrix.build_system == 'xmake' }}
-        uses: xmake-io/github-action-setup-xmake@v1
-        with:
-          xmake-version: latest
-
-      - uses: astral-sh/setup-uv@v6
-
-      - uses: go-task/setup-task@v1
-
-      - name: Checkout code
-        uses: actions/checkout@v4
+  lint:
+    runs-on: ${{ inputs.os }}
+    needs: [setup, build]
+    strategy:
+      matrix:
+        build_system: ${{ fromJSON(inputs.build_system) }}
+        task_manager:
+          # - mise
+          - task
+        compiler:
+          - clang++
+          # - g++
+          # - msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
 
       - name: Test Code Formatting
-        run: task format:check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
+            mise exec -- task format:check
+          else
+            mise run format
+          fi
+        shell: bash
 
       - name: Lint Code
-        run: task clean:${{ matrix.build_system }} lint:check CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
+            mise exec -- task clean lint:check CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
+          else
+            mise run clean && \
+              mise run lint --build-system ${{ matrix.build_system }} --compiler ${{ matrix.compiler }}
+          fi
+        shell: bash
+
+  test:
+    runs-on: ${{ inputs.os }}
+    needs: [setup, lint]
+    strategy:
+      matrix:
+        build_system: ${{ fromJSON(inputs.build_system) }}
+        task_manager:
+          # - mise
+          - task
+        compiler:
+          - clang++
+          - g++
+          - msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tools
 
       - name: Test
-        run: task clean:${{ matrix.build_system }} test CPP_BUILD_SYSTEM=${{ matrix.build_system }}
+        # Skip MSVC on non-Windows and g++ on Windows
+        if: |
+          (runner.os == 'Windows' && matrix.compiler != 'g++') ||
+          (runner.os != 'Windows' && matrix.compiler != 'msvc')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
+            mise exec -- task clean test CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
+          else
+            mise run clean && \
+              mise run test --build-system ${{ matrix.build_system }} --compiler ${{ matrix.compiler }}
+          fi
+        shell: bash
 
   duplicate-check:
+    if: ${{ inputs.os == 'macos-latest' }}
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-
-      - uses: astral-sh/setup-uv@v6
 
       - uses: go-task/setup-task@v1
 
@@ -92,61 +147,3 @@ jobs:
 
       - name: Run duplicate check
         run: task duplicate-check
-
-  build:
-    runs-on: ${{ inputs.os }}
-    strategy:
-      matrix:
-        llvm_version: ${{ fromJSON(inputs.llvm_versions) }}
-        build_system: ${{ fromJSON(inputs.build_system) }}
-    needs: validate
-    steps:
-      - if: ${{ runner.os == 'macOS' }}
-        name: Install LLVM on macOS
-        run: |
-          brew install llvm@${{ matrix.llvm_version }}
-          echo "PATH=$(brew --prefix llvm@${{ matrix.llvm_version }})/bin;$PATH" >> $GITHUB_ENV
-          echo "LDFLAGS=-L$(brew --prefix llvm@${{ matrix.llvm_version }})/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I$(brew --prefix llvm@${{ matrix.llvm_version }})/include" >> $GITHUB_ENV
-
-      - if: ${{ runner.os != 'macOS' }}
-        uses: ZhongRuoyu/setup-llvm@v0
-        with:
-          llvm-version: ${{ matrix.llvm_version }}
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Linux' }}
-        run: |
-          sudo apt update && sudo apt install -y cmake
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'macOS' }}
-        run: |
-          brew install cmake
-
-      - if: ${{ matrix.build_system == 'cmake' && runner.os == 'Windows' }}
-        run: |
-          choco install cmake
-
-      - if: ${{ matrix.build_system == 'xmake' }}
-        uses: xmake-io/github-action-setup-xmake@v1
-        with:
-          xmake-version: latest
-
-      - uses: astral-sh/setup-uv@v6
-
-      - uses: go-task/setup-task@v1
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build
-        run: task clean:${{ matrix.build_system }} build CPP_BUILD_SYSTEM=${{ matrix.build_system }}
-
-      - name: Upload build artifacts
-        if: matrix.build_system == 'cmake'
-        uses: actions/upload-artifact@v4
-        with:
-          name: cpp-template-${{ runner.os }}-${{ matrix.llvm_versions }}
-          path: |
-            build/src/cpp-template*
-            build/tests/cpp-template-tests*
-          retention-days: 7

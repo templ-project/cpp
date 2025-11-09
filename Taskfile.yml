@@ -1,312 +1,588 @@
 version: "3"
 
 vars:
+  __TF_COMMAND_WRAPPER:
+    sh: |
+      echo '{{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command{{else}}bash -c{{end}}'
+  __TF_VAR_PREFIX:
+    sh: |
+      echo "{{if eq OS "windows"}}\${{else}}{{end}}"
+  __TF_DUMMY_SPACE: " "
+  __TF_HEADER_LINE: "=============================================================="
+  __TF_VALIDATION_CPP_BUILD_SYSTEMS:
+    sh: |
+      echo "bazel cmake xmake"
+  __TF_VALIDATION__CPP_COMPILERS:
+    sh: |
+      echo "clang++ {{if eq OS "windows"}}msvc{{else}}g++{{end}}"
+
   CPP_PROJECT_NAME: '{{default .CPP_PROJECT_NAME "cpp-template"}}'
-  CPP_BUILD_SYSTEM: '{{default .CPP_BUILD_SYSTEM "cmake"}}'
+  CPP_BUILD_SYSTEM: '{{default .CPP_BUILD_SYSTEM "cmake"}}' # bazel, cmake, xmake
   CPP_BUILD_DIR: '{{default .CPP_BUILD_DIR "build"}}'
   CPP_BUILD_TYPE: '{{default .CPP_BUILD_TYPE "Release"}}'
-  CPP_COMPILER: '{{default .CPP_COMPILER "clang++"}}'
-  CPP_LINTER: '{{default .CPP_LINTER "clang-tidy"}}'
-  CPP_FORMATTER: '{{default .CPP_FORMATTER "clang-format"}}'
+  CPP_COMPILER: '{{default .CPP_COMPILER "clang++"}}' # clang++, g++, msvc (windows)
+
+env:
+  BAZEL_VC:
+    sh: |
+      {{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command "(Get-ChildItem 'C:\Program Files*\Microsoft Visual Studio\*\*\VC\Tools\MSVC' | Sort-Object LastWriteTime -Descending | Select-Object -First 1).Parent.Parent.FullName"{{else}}echo ""{{end}}
+  BAZEL_VC_FULL_VERSION:
+    sh: |
+      {{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command "(Get-ChildItem 'C:\Program Files*\Microsoft Visual Studio\*\*\VC\Tools\MSVC\*' | Sort-Object LastWriteTime -Descending | Select-Object -First 1).Name"{{else}}echo ""{{end}}
+  BAZEL_LLVM:
+    sh: |
+      {{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command "try { (Get-Item (Get-Command clang++).Source).Directory.Parent.FullName } catch { Write-Host '' }"{{else}}echo ""{{end}}
+  CMAKE_VS_GENERATOR:
+    sh: |
+      {{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command "(Get-ChildItem 'C:\Program Files*\Microsoft Visual Studio\*' -Directory | Sort-Object Name | Select-Object -First 1).Name | ForEach-Object { if (\$_ -eq '2022') { 'Visual Studio 17 2022' } elseif (\$_ -eq '2019') { 'Visual Studio 16 2019' } elseif (\$_ -eq '2017') { 'Visual Studio 15 2017' } else { 'Visual Studio 17 2022' } }"{{else}}echo ""{{end}}
+  # LLVM_ROOT:
+  #   sh: |
+  #     {{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command '(Get-Item (Get-Command clang++).Source).Directory.Parent.FullName'{{else}}dirname $(dirname $(which clang++)){{end}}
+  SDKROOT:
+    sh: |
+      echo "{{if eq OS "darwin"}}/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk{{else}}$SDKROOT{{end}}"
+  # LDFLAGS:
+  #   sh: |
+  #     {{if eq OS "darwin"}}echo "-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib"{{else if eq OS "linux"}}echo ""{{else}}LLVM_ROOT=$(powershell -ExecutionPolicy Bypass -Command '(Get-Item (Get-Command clang++).Source).Directory.Parent.FullName'); echo "-L\"$LLVM_ROOT/lib\""{{end}}
 
 tasks:
+  # ==========================================================================
+  # Build Tasks
+  # ==========================================================================
+
+  print:env:
+    desc: "Print current build environment variables"
+    cmds:
+      - cmd: env
+        platforms: [darwin, linux]
+      - cmd: powershell -Command "Get-ChildItem Env:"
+        platforms: [windows]
+
   build:
-    desc: "Build project (default: {{.CPP_BUILD_SYSTEM}})"
-    deps:
-    - "build:{{.CPP_BUILD_SYSTEM}}"
+    desc: "Build project (system: {{.CPP_BUILD_SYSTEM}}, type: {{.CPP_BUILD_TYPE}})"
+    cmds:
+      - cmd: |
+          echo "{{.__TF_HEADER_LINE}}"
+          echo "Compiling for {{OS}}/{{ARCH}}, using {{.CPP_BUILD_SYSTEM}} and {{.CPP_COMPILER}}"
+          echo "{{.__TF_HEADER_LINE}}"
+          {{if ne OS "windows"}}{{if eq .CPP_COMPILER "msvc"}}
+            echo "❌ MSVC compiler is only supported on Windows."
+            exit 1
+          {{end}}{{end}}
+      - task: print:env
+      - task: "build:{{.CPP_BUILD_SYSTEM}}"
+        vars:
+          CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
+          CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+    sources:
+      - src/**/*.cpp
+      - src/**/*.hpp
+      - include/**/*.hpp
+      - include/**/*.h
+      - tests/**/*.cpp
+
+  build:bazel:
+    desc: "Build project using Bazel"
+    sources:
+      - BUILD.bazel
+      - tests/BUILD.bazel
+      - .bazelrc
+      - MODULE.bazel
+      - WORKSPACE
+    generates:
+      - bazel-bin/{{.CPP_PROJECT_NAME}}
+    env:
+      CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
+      CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+      CPP_COMPILER: "{{.CPP_COMPILER}}"
+      CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+    cmds:
+      - python scripts/compile_templates.py --build-system bazel --compiler {{.CPP_COMPILER}}
+      - |
+        BAZEL_CONFIG="{{if eq .CPP_BUILD_TYPE "Debug"}}--compilation_mode=dbg{{else}}--compilation_mode=opt{{end}}"
+        bazel build //:{{.CPP_PROJECT_NAME}} $BAZEL_CONFIG
+
+        # Generate compile_commands.json for clang-tidy using Hedron
+        {{if ne .CPP_COMPILER "msvc"}}
+        bazel run @hedron_compile_commands//:refresh_all
+        {{end}}
 
   build:cmake:
     desc: "Build project using CMake"
-    deps:
-    - task: which
-      vars:
-        COMMAND: "cmake"
     sources:
-    - CMakeLists.txt
-    - src/**/*.cpp
-    - src/**/*.hpp
-    - include/**/*.hpp
-    - include/**/*.h
-    - tests/**/*.cpp
-    - tests/CMakeLists.txt
+      - CMakeLists.txt
+      - tests/CMakeLists.txt
     generates:
-    - "{{.CPP_BUILD_DIR}}/CMakeCache.txt"
-    - "{{.CPP_BUILD_DIR}}/compile_commands.json"
+      - "{{.CPP_BUILD_DIR}}/CMakeCache.txt"
+      - "{{.CPP_BUILD_DIR}}/compile_commands.json"
+    env:
+      CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
+      CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+      CPP_COMPILER: "{{.CPP_COMPILER}}"
+      CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+    vars:
+      CMAKE_GENERATOR: '{{if eq OS "windows"}}{{if eq .CPP_COMPILER "msvc"}}{{.CMAKE_VS_GENERATOR}}{{else}}Ninja{{end}}{{else}}Unix Makefiles{{end}}'
+      CMAKE_COMPILER_FLAG: '{{if eq .CPP_COMPILER "msvc"}}{{else}}-DCMAKE_CXX_COMPILER={{.CPP_COMPILER}}{{end}}'
     cmds:
-    - |
-      # Use Unix Makefiles generator to avoid Visual Studio detection
-      cmake -B {{.CPP_BUILD_DIR}} -G "Unix Makefiles" -DCMAKE_BUILD_TYPE={{.CPP_BUILD_TYPE}} \
-        -DCMAKE_CXX_COMPILER={{.CPP_COMPILER}} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-    - cmake --build {{.CPP_BUILD_DIR}} --parallel
+      - python scripts/compile_templates.py --build-system cmake --compiler {{.CPP_COMPILER}}
+      - |
+        cmake -B "{{.CPP_BUILD_DIR}}" -G "{{.CMAKE_GENERATOR}}" \
+            -DCMAKE_BUILD_TYPE="{{.CPP_BUILD_TYPE}}" \
+            {{.CMAKE_COMPILER_FLAG}} \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        cmake --build "{{.CPP_BUILD_DIR}}" --parallel
 
   build:xmake:
     desc: "Build project using XMake"
-    deps:
-    - task: which
-      vars:
-        COMMAND: "xmake"
     sources:
-    - xmake.lua
-    - src/**/*.cpp
-    - src/**/*.hpp
-    - include/**/*.hpp
-    - include/**/*.h
-    - tests/**/*.cpp
+      - xmake.lua
     generates:
-    - .xmake/cache/config
-    - "{{.CPP_BUILD_DIR}}/compile_commands.json"
+      - .xmake/cache/config
+      - "{{.CPP_BUILD_DIR}}/compile_commands.json"
+    env:
+      CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
+      CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+      CPP_COMPILER: "{{.CPP_COMPILER}}"
+      CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+      '{{if and (eq OS "windows") (eq .CPP_COMPILER "clang++")}}CXXFLAGS': "-Wno-error -Wno-unknown-warning-option"
+    vars:
+      XMAKE_MODE: '{{if eq .CPP_BUILD_TYPE "Debug"}}debug{{else}}release{{end}}'
     cmds:
-    - |
-      # Configure xmake with the appropriate compiler
-      XMAKE_ARGS="-m {{.CPP_BUILD_TYPE | lower}} --toolchain=clang -y"
+      - python scripts/compile_templates.py --build-system xmake --compiler {{.CPP_COMPILER}}
+      - xmake f -m {{.XMAKE_MODE}} -y
+      - xmake build
+      - xmake project -k compile_commands "{{.CPP_BUILD_DIR}}"
 
-      # If a custom C++ compiler is specified, use it
-      if [ -n "{{.CPP_COMPILER}}" ] && [ "{{.CPP_COMPILER}}" != "clang++" ]; then
-        XMAKE_ARGS="$XMAKE_ARGS --cxx={{.CPP_COMPILER}}"
-      fi
+  build:detect:msvc:
+    desc: "Detect MSVC compiler on Windows and display configuration"
+    cmds:
+      - |
+        {{if eq OS "windows"}}
+        echo "🔍 Detecting Visual Studio installation..."
+        echo "VC Path: $BAZEL_VC"
+        echo "VC Version: $BAZEL_VC_FULL_VERSION"
+        echo "Compiler: {{.CPP_COMPILER}}"
 
-      xmake f $XMAKE_ARGS
-    - xmake build
-    - xmake project -k compile_commands {{.CPP_BUILD_DIR}}
+        # Test if MSVC is accessible
+        if [ "{{.CPP_COMPILER}}" = "msvc" ]; then
+          powershell -Command "if (Test-Path '$env:BAZEL_VC\\bin\\Hostx64\\x64\\cl.exe') { Write-Host '✅ MSVC cl.exe found' } else { Write-Host '❌ MSVC cl.exe not found' }"
+        fi
+        {{else}}
+        echo "ℹ️ MSVC detection is only available on Windows"
+        {{end}}
+
+  # ============================================================================
+  # Clean Tasks
+  # ============================================================================
 
   clean:
-    desc: "Clean all builds"
-    deps: [ "clean:cmake", "clean:node", "clean:xmake" ]
+    desc: "Clean all build artifacts"
     cmds:
-    - rm -rf docs .jscpd/html .task
+      - |
+        rm -rf \
+            .bazelrc \
+            .cache \
+            .coverage \
+            .jscpd/html \
+            .task \
+            .xmake \
+            {{.CPP_BUILD_DIR}} \
+            BUILD.bazel \
+            tests/BUILD.bazel \
+            CMakeLists.txt \
+            MODULE.bazel \
+            WORKSPACE \
+            compile_commands.json \
+            docs-html \
+            node_modules \
+            package-lock.json \
+            src/CMakeLists.txt \
+            xmake.lua
 
-  clean:cmake:
-    desc: "Clean CMake build"
+        find . -type d -name "bazel-*" | while read d; do rm -rf "$d"; done
+
+  # ============================================================================
+  # Code Quality Tasks
+  # ============================================================================
+
+  format:
+    desc: "Format code and fix issues"
     cmds:
-    - rm -rf {{.CPP_BUILD_DIR}}
+      - |
+        python scripts/format.py --fix
 
-  clean:node:
-    desc: "Clean Node.js modules"
+  format:check:
+    desc: "Check code formatting without fixing"
     cmds:
-    - rm -rf node_modules package-lock.json package.json
+      - python scripts/format.py
 
-  clean:xmake:
-    desc: "Clean XMake build"
-    cmds:
-    - cmd: xmake clean
-      ignore_error: true
-    - rm -rf .xmake
-
-  debug:
-    desc: "Run application with debugger"
+  lint:
+    desc: "Run linter and fix issues"
     deps:
-    - task: which
-      vars:
-        COMMAND: "gdb"
-    - task: build
-      vars: { CPP_BUILD_TYPE: "Debug" }
+      - task: build
+        vars:
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
     cmds:
-    - gdb ./{{.CPP_BUILD_DIR}}/src/{{.CPP_PROJECT_NAME}}
+      - |
+        python scripts/lint.py --build-dir "{{if eq .CPP_BUILD_SYSTEM "bazel"}}.{{else}}{{.CPP_BUILD_DIR}}{{end}}" --fix
 
-  default:
-    desc: "Show available tasks"
-    cmds:
-    - task --list
-
-  docs:
-    desc: "Generate documentation with Doxygen"
+  lint:check:
+    desc: "Run linter without fixing"
     deps:
-    - task: which
-      vars:
-        COMMAND: "doxygen"
+      - task: build
+        vars:
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
     cmds:
-    - doxygen Doxyfile
+      - |
+        python scripts/lint.py --build-dir "{{if eq .CPP_BUILD_SYSTEM "bazel"}}.{{else}}{{.CPP_BUILD_DIR}}{{end}}"
 
   duplicate-check:
     desc: "Check for duplicate code using jscpd"
-    deps:
-    - task: which
-      vars:
-        COMMAND: "node"
     cmds:
-    - cmd: |
-        [ ! -d ./node_modules ] && npm install jscpd  @jscpd/badge-reporter
+      - "[ ! -d ./node_modules ] && npm install jscpd @jscpd/badge-reporter"
+      - npx jscpd src/ include/
+      - git add .jscpd/jscpd-badge.svg 2>/dev/null || true
 
-        npx jscpd src/ include/
-
-        git add .jscpd/jscpd-badge.svg 2>/dev/null || true
-
-  format:
-    desc: "Format code using {{.CPP_FORMATTER}}"
-    deps:
-    - task: venv
-    - task: format:check
-      vars:
-        CLI_ARGS: fix
-
-  format:check:
-    desc: "Check code formatting"
-    deps:
-    - task: venv
-    cmds:
-    - cmd: ./.venv/bin/python scripts/format.py {{.CLI_ARGS}}
-      platforms: [ darwin, linux ]
-    - cmd: ./.venv/Scripts/python scripts/format.py {{.CLI_ARGS}}
-      platforms: [ windows ]
-
-  hooks:install:
-    desc: "Install git hooks using pre-commit"
-    deps:
-    - task: which
-      vars:
-        COMMAND: "uv"
-    - task: venv
-    cmds:
-    - cmd: |
-        uv pip install pre-commit
-    - cmd: |
-        ./.venv/bin/pre-commit install
-        ./.venv/bin/pre-commit install --hook-type pre-push
-
-        echo "✓ Git hooks installed successfully"
-      platforms: [ linux, darwin ]
-    - cmd: |
-        ./.venv/Scripts/pre-commit install
-        ./.venv/Scripts/pre-commit install --hook-type pre-push
-
-        echo "✓ Git hooks installed successfully"
-      platforms: [ windows ]
-
-  lint:
-    desc: "Run {{.CPP_LINTER}} linter and fix issues"
-    deps:
-    - task: venv
-    - build
-    cmds:
-    - task: lint:check
-      vars:
-        CLI_ARGS: fix
-
-  lint:check:
-    desc: "Run {{.CPP_LINTER}} linter without fixing"
-    deps:
-    - task: venv
-    - build
-    cmds:
-    - cmd: ./.venv/bin/python scripts/lint.py {{.CLI_ARGS}} -p {{.CPP_BUILD_DIR}}
-      platforms: [ darwin, linux ]
-    - cmd: ./.venv/Scripts/python scripts/lint.py {{.CLI_ARGS}} -p {{.CPP_BUILD_DIR}}
-      platforms: [ windows ]
-
-  run:
-    desc: "Run the application (default: {{.CPP_BUILD_SYSTEM}})"
-    deps:
-    - "run:{{.CPP_BUILD_SYSTEM}}"
-
-  run:cmake:
-    desc: "Run the application (CMake build)"
-    deps: [ "build:cmake" ]
-    cmds:
-    - ./{{.CPP_BUILD_DIR}}/src/{{.CPP_PROJECT_NAME}}
-
-  run:xmake:
-    desc: "Run the application (XMake build)"
-    deps: [ "build:xmake" ]
-    cmds:
-    - xmake run {{.CPP_PROJECT_NAME}}
-
-  start:
-    desc: "Start the application (alias for run)"
-    deps: [ "run" ]
+  # ============================================================================
+  # Test Tasks
+  # ============================================================================
 
   test:
-    desc: "Run tests (default: {{.CPP_BUILD_SYSTEM}})"
-    deps:
-    - "test:{{.CPP_BUILD_SYSTEM}}"
+    desc: "Run tests (system: {{.CPP_BUILD_SYSTEM}})"
+    cmds:
+      - task: build
+        vars:
+          CPP_BUILD_TYPE: "Debug"
+      - task: test:{{.CPP_BUILD_SYSTEM}}
+
+  test:bazel:
+    desc: 'Run tests with Bazel{{if and (eq OS "linux") (eq .CPP_COMPILER "g++")}} and generate coverage{{end}}'
+    cmds:
+      - cmd: |
+          {{if eq OS "linux"}}
+            {{if eq .CPP_COMPILER "g++"}}
+          echo "📊 Running tests with coverage for g++..."
+          bazel coverage //tests/... --config=coverage --nocache_test_results
+            {{else}}
+          echo "✅ Running tests (coverage only supported with g++)..."
+          bazel test //tests/... --test_output=errors
+            {{end}}
+          {{else}}
+          echo "✅ Running tests (coverage only supported on Linux with g++)..."
+          bazel test //tests/... --test_output=errors
+          {{end}}
+      - task: test:gen-coverage
+        vars:
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
 
   test:cmake:
-    desc: "Run tests using CMake"
-    deps:
-    - task: which
-      vars:
-        COMMAND: "ctest"
-    - "build:cmake"
+    desc: "Run tests with coverage using CMake"
     cmds:
-    - cd {{.CPP_BUILD_DIR}} && ctest --output-on-failure
-
-  test:coverage:
-    desc: "Run tests with coverage"
-    deps:
-    - task: which
-      vars:
-        COMMAND: "gcov"
-    - task: build
-      vars: { CPP_BUILD_TYPE: "Debug" }
-    cmds:
-    - |
-      echo "🧪 Running tests with coverage..."
-      cd {{.CPP_BUILD_DIR}} && ctest --output-on-failure
-      echo "📊 Generating coverage report..."
-      find . -name "*.gcno" -exec gcov {} \; || echo "Coverage data collection may be incomplete"
-      echo "📁 Coverage files generated in build directory"
-
-  test:watch:
-    desc: "Run tests in watch mode (manual restart)"
-    cmds:
-    - |
-      echo "🔄 Watch mode: Press Ctrl+C to stop, then run 'task test' to re-run tests"
-      echo "💡 Consider using entr for automatic file watching:"
-      echo "    find src tests -name '*.cpp' -o -name '*.hpp' | entr -c task test"
-      task test
+      - cd {{.CPP_BUILD_DIR}} && ctest --output-on-failure {{if eq .CPP_COMPILER "msvc"}}-C Debug{{end}}
+      - task: test:gen-coverage
+        vars:
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
 
   test:xmake:
-    desc: "Run tests using XMake"
-    deps:
-    - task: which
-      vars:
-        COMMAND: "xmake"
-    - "build:xmake"
+    desc: "Run tests with coverage using XMake"
+    vars:
+      XMAKE_MODE: '{{if eq .CPP_BUILD_TYPE "Debug"}}debug{{else}}release{{end}}'
     cmds:
-    - xmake run {{.CPP_PROJECT_NAME}}-tests
+      - xmake run {{.CPP_PROJECT_NAME}}-tests
+      - task: test:gen-coverage
+        vars:
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}/{{.XMAKE_MODE}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
+
+  test:gen-coverage:
+    desc: "Generate coverage report"
+    cmds:
+      - cmd: |
+          echo ""
+          echo "📊 Generating coverage report..."
+          echo ""
+      # Windows: Skip coverage for MSVC only, allow clang++
+      - cmd: |
+          {{if eq OS "windows"}}
+            {{if eq .CPP_COMPILER "msvc"}}
+          echo "⚠️ Coverage generation is not supported with MSVC on Windows. Skipping."
+          echo ""
+          exit 0
+            {{end}}
+          {{end}}
+        platforms: [windows]
+      # Bazel: g++ on Linux only, use lcov
+      - cmd: |
+          {{if eq .CPP_BUILD_SYSTEM "bazel"}}
+            {{if or (ne .CPP_COMPILER "g++") (ne OS "linux")}}
+          echo "⚠️ Bazel coverage is only supported with g++ on Linux. Skipping."
+          echo ""
+          exit 0
+            {{end}}
+
+          if [ ! -f "bazel-out/_coverage/_coverage_report.dat" ]; then
+            echo "⚠️ No coverage data found. Did coverage run successfully?"
+            exit 0
+          fi
+
+          if ! command -v genhtml >/dev/null 2>&1; then
+            echo "⚠️ genhtml not found. Install: sudo apt-get install lcov"
+            exit 1
+          fi
+
+          # Generate inline coverage summary
+          if command -v lcov >/dev/null 2>&1; then
+            echo "📊 Coverage Summary (Source Files Only):"
+            echo ""
+
+            # Show detailed per-file coverage, filtering out test files from display
+            lcov --list bazel-out/_coverage/_coverage_report.dat 2>/dev/null | \
+              tail -n +3 | \
+              grep -v -E "(tests/|integration/|unit/)" | \
+              grep -v "^Executed" | \
+              grep -v "^Test cases" || \
+              lcov --list bazel-out/_coverage/_coverage_report.dat 2>/dev/null | tail -n +3
+            echo ""
+          fi
+
+          # Generate HTML report
+          mkdir -p .coverage
+          if ! genhtml bazel-out/_coverage/_coverage_report.dat \
+            --output-directory .coverage \
+            --branch-coverage \
+            --highlight \
+            --legend \
+            --ignore-errors empty \
+            --quiet 2>/dev/null; then
+            echo "⚠️ Failed to generate coverage report. The coverage data may be empty."
+            echo "   This can happen if no source files were instrumented."
+            echo "   Check that your source files are in the correct directories."
+            exit 0
+          fi
+
+          echo ""
+          echo "✅ HTML coverage report: .coverage/index.html"
+          echo ""
+          exit 0
+          {{end}}
+        platforms: [darwin, linux]
+      # CMake/XMake: Skip MSVC, use gcovr or llvm-profdata+llvm-cov
+      - cmd: |
+          {{if or (eq .CPP_BUILD_SYSTEM "cmake") (eq .CPP_BUILD_SYSTEM "xmake")}}
+            {{if eq .CPP_COMPILER "msvc"}}
+          echo "⚠️ Coverage is not supported with MSVC. Skipping."
+          echo ""
+          exit 0
+            {{end}}
+
+          if ! command -v gcovr >/dev/null 2>&1; then
+            echo "⚠️ gcovr not found. Install: uv pip install gcovr"
+            exit 1
+          fi
+
+          echo "📊 Coverage Summary:"
+          echo ""
+
+          # Determine gcov executable based on compiler
+          GCOV_EXEC="gcov"
+          {{if eq .CPP_COMPILER "clang++"}}
+          # Use llvm-cov with gcov-compatible interface for clang++
+          if command -v llvm-cov >/dev/null 2>&1; then
+            GCOV_EXEC="llvm-cov gcov"
+            echo "ℹ️ Using llvm-cov for clang++ coverage"
+          else
+            echo "⚠️ Warning: llvm-cov not found, coverage may fail with clang++"
+          fi
+          {{else if eq .CPP_COMPILER "g++"}}
+          # Try to find the matching gcov for g++
+          CXX_VERSION=$({{.CPP_COMPILER}} -dumpversion | cut -d. -f1)
+          if command -v "gcov-$CXX_VERSION" >/dev/null 2>&1; then
+            GCOV_EXEC="gcov-$CXX_VERSION"
+            echo "ℹ️ Using $GCOV_EXEC to match {{.CPP_COMPILER}} version $CXX_VERSION"
+          else
+            echo "⚠️ Warning: gcov-$CXX_VERSION not found, using default gcov (may cause version mismatch)"
+          fi
+          {{end}}
+
+          gcovr --root . \
+            --filter 'src/.*' --filter 'include/.*' \
+            --exclude 'tests/.*' --exclude 'build/_deps/.*' \
+            --gcov-executable "$GCOV_EXEC" \
+            --gcov-ignore-errors=no_working_dir_found \
+            --txt
+          echo ""
+
+          mkdir -p .coverage
+          gcovr --root . \
+            --filter 'src/.*' --filter 'include/.*' \
+            --exclude 'tests/.*' --exclude 'build/_deps/.*' \
+            --gcov-executable "$GCOV_EXEC" \
+            --gcov-ignore-errors=no_working_dir_found \
+            --html-details .coverage/index.html 2>/dev/null
+          echo "✅ HTML coverage report: .coverage/index.html"
+          echo ""
+          {{end}}
+    silent: true
+
+  # ============================================================================
+  # Development Tools
+  # ============================================================================
+
+  run:
+    desc: "Run application"
+    deps:
+      - task: build
+        vars:
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+    cmds:
+      - |
+        echo "🏃 Running application..."
+        {{.__TF_COMMAND_WRAPPER}} '{{
+          .__TF_VAR_PREFIX}}BUILD_PATH="{{if eq .CPP_BUILD_SYSTEM "bazel"}}bazel-out{{else}}{{.CPP_BUILD_DIR}}{{end}}";{{.__TF_DUMMY_SPACE}}{{
+            if ne OS "windows"}}eval $(find ./$BUILD_PATH/{{if eq .CPP_BUILD_SYSTEM "bazel"}}*-opt{{end}} -type f -name {{.CPP_PROJECT_NAME}} | head -n 1){{
+            else}}(Get-ChildItem ./$BUILD_PATH{{if eq .CPP_BUILD_SYSTEM "bazel"}}/*-opt/bin{{end}} -Recurse -Filter {{
+              .CPP_PROJECT_NAME}}.exe | Select-Object -First 1).FullName | ForEach-Object { & $_ }{{
+            end}}'
+
+  debug:
+    desc: "Run application with debugger (gdb on Linux/macOS)"
+    cmds:
+      - task: build
+        vars:
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_BUILD_TYPE: "Debug"
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
+          CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+      - cmd: |
+          {{if eq OS "windows"}}
+          echo "⚠️ CLI debugging not supported on Windows."
+          echo "ℹ️ Please use Visual Studio or your IDE's debugger instead."
+          echo ""
+          echo "Alternatively, install gdb via MSYS2 and run manually:"
+          {{.__TF_COMMAND_WRAPPER}} '{{
+            .__TF_VAR_PREFIX}}BUILD_PATH="{{if eq .CPP_BUILD_SYSTEM "bazel"}}bazel-out{{else}}{{.CPP_BUILD_DIR}}{{end}}";{{.__TF_DUMMY_SPACE}}{{
+              }}(Get-ChildItem ./$BUILD_PATH{{if eq .CPP_BUILD_SYSTEM "bazel"}}/*-dbg/bin{{end}} -Recurse -Filter {{
+                .CPP_PROJECT_NAME}}.exe | Select-Object -First 1).FullName | ForEach-Object { Write-Host "gdb `"$_`"" }'
+          exit 0
+          {{else}}
+          if ! command -v gdb >/dev/null 2>&1; then
+            echo "⚠️ gdb not found. Please install gdb first."
+            exit 1
+          fi
+          echo "🐛 Starting gdb debugger..."
+          gdb $(find ./{{if eq .CPP_BUILD_SYSTEM "bazel"}}bazel-out/*-dbg{{else}}{{.CPP_BUILD_DIR}}{{end}} -name {{.CPP_PROJECT_NAME}} | head -n 1)
+          {{end}}
+
+  # ============================================================================
+  # Documentation Tasks
+  # ============================================================================
+
+  docs:
+    desc: "Build documentation"
+    cmds:
+      - mkdocs build
+
+  docs:serve:
+    desc: "Serve documentation locally with live reload"
+    cmds:
+      - |
+        echo "📚 Starting documentation server..."
+        echo "📖 Open http://127.0.0.1:8000 in your browser"
+        mkdocs serve
+
+  docs:deploy:
+    desc: "Deploy documentation to GitHub Pages"
+    cmds:
+      - mkdocs gh-deploy --force
+
+  # ============================================================================
+  # Validation Tasks
+  # ============================================================================
 
   validate:
-    desc: "Run CI pipeline (format, lint, duplicate-check, test)"
     cmds:
-    - task: clean
-    - task: "format:check"
-    - task: "duplicate-check"
-    - task: "lint:check"
-    - task: "test"
-    - task: "build"
+      - cmd: |
+          {{range $build := .__TF_VALIDATION_CPP_BUILD_SYSTEMS | splitList " "}}
+            task validate:by:build-system CPP_BUILD_SYSTEM="{{$build}}"
+          {{end}}
+    desc: "Run integration tests for all build systems"
+    silent: true
 
-  valgrind:
-    desc: "Run application with Valgrind"
-    deps:
-    - task: which
-      vars:
-        COMMAND: "valgrind"
-    - task: build
-      vars: { CPP_BUILD_TYPE: "Debug" }
+  validate:by:build-system:
     cmds:
-    - valgrind --leak-check=full --show-leak-kinds=all ./{{.CPP_BUILD_DIR}}/src/{{.CPP_PROJECT_NAME}}
+      - cmd: |
+          bs='{{.CPP_BUILD_SYSTEM}}'
+          hl="{{.__TF_HEADER_LINE}}"
+          {{range $compiler := .__TF_VALIDATION__CPP_COMPILERS | splitList " "}}
+            echo $hl
+            echo "🏃 Running validation for $bs with {{$compiler}}..."
+            echo $hl
+            echo ""
+            task validate:by:build-system:compiler \
+              CPP_PROJECT_NAME="cpp-template" \
+              CPP_BUILD_SYSTEM="$bs" \
+              CPP_COMPILER="{{$compiler}}" \
+              CPP_BUILD_DIR="build"
+          {{end}}
+    desc: "Run CI pipeline for specific build system"
+    silent: true
 
-  which:
-    desc: "Check if at least one command exists"
-    deps:
-    - task: venv
+  validate:by:build-system:compiler:
     cmds:
-    - cmd: ./.venv/bin/python scripts/which.py {{if .COMMANDS}}{{.COMMANDS}}{{else}}{{.COMMAND}}{{end}}
-      platforms: [ darwin, linux ]
-    - cmd: ./.venv/Scripts/python scripts/which.py {{if .COMMANDS}}{{.COMMANDS}}{{else}}{{.COMMAND}}{{end}}
-      platforms: [ windows ]
+      - task: format
+      - task: clean
+      - task: build
+      - task: lint
+      - task: run
+      - task: clean
+      - task: test
+      - cmd: |
+          echo ""
+          echo "{{.__TF_HEADER_LINE}}"
+          echo "✅ Validation successful for {{.CPP_BUILD_SYSTEM}} with {{.CPP_COMPILER}}"
+          echo "{{.__TF_HEADER_LINE}}"
+          echo ""
+    desc: "Run CI pipeline for specific build system and compiler"
+    silent: true
 
-  venv:
-    desc: "Create or update Python virtual environment in .venv"
+  # ============================================================================
+  # Python/UV Package Management Tasks
+  # ============================================================================
+
+  uv:refresh:
+    desc: "Refresh all Python packages (update dependencies)"
     cmds:
-    - cmd: |
-        if [ ! -d ./.venv ]; then
-          uv venv
-          ./.venv/bin/python --version
-        fi
-      platforms: [darwin, linux]
-    - cmd: |
-        if [ ! -d ./.venv ]; then
-          uv venv
-          ./.venv/Scripts/python --version
-        fi
-      platforms: [windows]
+      - |
+        echo "🔄 Refreshing Python packages..."
+        uv sync --upgrade
+        echo "✓ Packages refreshed"
+
+  uv:sync:
+    desc: "Install Python dependencies (including pre-commit)"
+    cmds:
+      - |
+        echo "📦 Installing Python dependencies..."
+        uv sync
+        echo "🪝 Installing pre-commit hooks..."
+        pre-commit install
+        echo "✓ Python environment ready"
+
+  # valgrind:
+  #   desc: "Run application with Valgrind"
+  #   deps:
+  #     - task: build
+  #       vars: { CPP_BUILD_TYPE: "Debug" }
+  #   cmds:
+  #     - mise exec -- valgrind --leak-check=full --show-leak-kinds=all ./{{.CPP_BUILD_DIR}}/src/{{.CPP_PROJECT_NAME}}

@@ -30,15 +30,13 @@ jobs:
 
     - name: Bump version with Bumpalicious
       id: bump
-      uses: dragoscops/bumpalicious@v2
+      uses: dragoscops/bumpalicious@v3
       with:
-        workspaces: '.:text'
+        github_token:  ${{ secrets.GH_TOKEN }}
         pr: 'true'
         pr_auto_merge: ${{ inputs.pr_auto_merge }}
         pr_message: 'chore: version bump'
-        branch: 'main'
-        changelog_preset: 'conventionalcommits'
-        short_tag: 'true'
+        workspaces: '.:text'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

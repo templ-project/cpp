@@ -2,36 +2,31 @@ name: C++ CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
-  workflow_dispatch:
+    branches: [main, develop]
+  workflow_dispatch: {}
 
 jobs:
   # Validation & Build matrix for different platforms and configurations
-  build-linux-release:
-    name: Build Linux Release
+  build:
+    name: Build ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
     uses: ./.github/workflows/ci.build.yml
     with:
-      os: ubuntu-latest
-
-  build-macos-release:
-    name: Build macOS Release
-    uses: ./.github/workflows/ci.build.yml
-    with:
-      os: macos-latest
-
-  build-windows-release:
-    name: Build Windows Release
-    uses: ./.github/workflows/ci.build.yml
-    with:
-      os: windows-latest
+      os: ${{ matrix.os }}
+      build_system: '["bazel", "xmake", "cmake"]'
 
   # Version bump (only on main branch push, uses conventional commits)
   version:
     name: Bump Version
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build-linux-release, build-macos-release, build-windows-release]
+    needs: [build]
     uses: ./.github/workflows/ci.version.yml
     permissions:
       contents: write
@@ -42,7 +37,7 @@ jobs:
   # Release (only on main branch push after version bump)
   release:
     name: Create Release
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (needs.version.result == 'success' || needs.version.result == 'skipped')
     needs: [version]
     uses: ./.github/workflows/ci.release.yml
     permissions:
@@ -50,3 +45,6 @@ jobs:
     with:
       version_tag: ${{ needs.version.outputs.version_tag }}
       prerelease: false
+
+  # Note: Automatic retries are handled by the ci.retry.yml workflow
+  # It monitors this workflow and automatically retries failed jobs up to 3 times
