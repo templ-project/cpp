@@ -1,0 +1,68 @@
+name: Auto Retry Failed Jobs
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Check retry count
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the workflow run that just failed
+          RUN_ID="${{ github.event.workflow_run.id }}"
+
+          # Check how many times this has been attempted
+          ATTEMPTS=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/actions/runs/${RUN_ID}/attempts" \
+            --jq '.total_count')
+
+          echo "Current attempts: ${ATTEMPTS}"
+          echo "attempts=${ATTEMPTS}" >> $GITHUB_OUTPUT
+
+          # Only retry up to 3 times total
+          if [ "${ATTEMPTS}" -lt 3 ]; then
+            echo "Will retry (attempt ${ATTEMPTS}/3)"
+            echo "should_retry=true" >> $GITHUB_OUTPUT
+          else
+            echo "Max retries reached (${ATTEMPTS}/3)"
+            echo "should_retry=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wait before retry
+        if: steps.check.outputs.should_retry == 'true'
+        run: |
+          echo "Waiting 30 seconds before retrying..."
+          sleep 30
+
+      - name: Retry failed jobs
+        if: steps.check.outputs.should_retry == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID="${{ github.event.workflow_run.id }}"
+
+          echo "Triggering retry for run ${RUN_ID}..."
+
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/actions/runs/${RUN_ID}/rerun-failed-jobs"
+
+          echo "✓ Retry triggered successfully"
+
+      - name: Skip retry
+        if: steps.check.outputs.should_retry == 'false'
+        run: |
+          echo "⚠️ Max retry attempts reached. Manual intervention required."
+          echo "View the failed run at: ${{ github.event.workflow_run.html_url }}"

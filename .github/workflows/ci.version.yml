@@ -1,16 +1,16 @@
-name: CI Version
+name: CI » Version
 
 on:
   workflow_call:
     inputs:
       pr_auto_merge:
-        description: 'Auto-merge the version bump PR'
+        description: "Auto-merge the version bump PR"
         required: false
         type: boolean
         default: false
     outputs:
       version_tag:
-        description: 'The version tag that was created (e.g., v1.2.3)'
+        description: "The version tag that was created (e.g., v1.2.3)"
         value: ${{ jobs.version.outputs.version_tag }}
 
 jobs:
@@ -22,26 +22,24 @@ jobs:
     outputs:
       version_tag: ${{ steps.bump.outputs.tag }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Bump version with Bumpalicious
-      id: bump
-      uses: dragoscops/bumpalicious@v2
-      with:
-        workspaces: '.:text'
-        pr: 'true'
-        pr_auto_merge: ${{ inputs.pr_auto_merge }}
-        pr_message: 'chore: version bump'
-        branch: 'main'
-        changelog_preset: 'conventionalcommits'
-        short_tag: 'true'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Bump version with Bumpalicious
+        id: bump
+        uses: dragoscops/bumpalicious@v3
+        with:
+          github_token: ${{ secrets.GH_TOKEN }}
+          pr: "true"
+          pr_auto_merge: ${{ inputs.pr_auto_merge }}
+          pr_message: "chore: version bump"
+          workspaces: ".:text"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Output new version
-      run: |
-        echo "New version tag: ${{ steps.bump.outputs.tag }}"
+      - name: Output new version
+        run: |
+          echo "New version tag: ${{ steps.bump.outputs.tag }}"

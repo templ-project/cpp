@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "language-server": {
+      "command": "${userHome}/go/bin/mcp-language-server",
+      "args": [
+        "--workspace",
+        "../",
+        "--lsp",
+        "clangd",
+        "--",
+        "--compile-commands-dir=../build"
+      ]
+    }
+  }
+}

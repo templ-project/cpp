@@ -1,10 +1,29 @@
+# Mise
+*mise.local.toml
+
 # Code with AI
 .cwai
 specs
 .specs
 
+# Env
+.env*
+!.env.example
+
 # Bootstrap files
 _install/__pycache__/
+
+# Build Systems
+BUILD.bazel
+tests/BUILD.bazel
+CMakeLists.txt
+xmake.lua
+
+# Python
+.venv
+*.egg-info/
+dist/
+*.egg
 
 # Node modules
 node_modules/
@@ -12,7 +31,8 @@ package-lock.json
 package.json
 .jscpd/html/
 
-# Taskfile
+# Cache folders
+.cache/
 .task/
 
 # Build Folders
@@ -23,10 +43,25 @@ package.json
 /lib
 
 # Generated Documentation
-/docs
+/docs-html/
+/site/
 
 # Build Systems
 .xmake
+bazel-*
+BUILD.xmake
+
+# Generated build configuration files (from templates/)
+CMakeLists.txt
+xmake.lua
+BUILD.bazel
+tests/BUILD.bazel
+.bazelrc
+MODULE.bazel
+src/CMakeLists.txt
+WORKSPACE
+# TODO: remove this file from gitignore when switching to bazel
+MODULE.bazel.lock
 
 # Prerequisites
 *.d
@@ -67,5 +102,9 @@ package.json
 *.out
 *.app
 
-# debug information files
+# Debug information files
 *.dwo
+
+# Coverage files
+.coverage
+*.gcov

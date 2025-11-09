@@ -201,10 +201,10 @@ def format_files(files: List[Path], fix: bool = False, style: str = 'Google') ->
     if not fix and changed_count > 0:
         if use_color:
             print(f"{Colors.YELLOW}⚠ {changed_count} file(s) need formatting{Colors.RESET}")
-            print(f"{Colors.DIM}Run 'task format' to fix them.{Colors.RESET}")
+            print(f"{Colors.DIM}Use '--fix' to fix them.{Colors.RESET}")
         else:
             print(f"! {changed_count} file(s) need formatting")
-            print("Run 'task format' to fix them.")
+            print("Use '--fix' to fix them.")
         return 1
 
     if fix and changed_count > 0:

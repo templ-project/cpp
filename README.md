@@ -2,173 +2,331 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
-[![CMake](https://img.shields.io/badge/CMake-3.20+-blue.svg)](https://cmake.org/)
 [![CI](https://github.com/templ-project/cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/templ-project/cpp/actions/workflows/ci.yml)
 ![JSCPD](.jscpd/jscpd-badge.svg?raw=true)
 
-> A modern C++ project template with CMake, testing, linting, and quality tools built-in.
+> A modern C++ project template with three build systems (Bazel, CMake, XMake), mise tooling, Jinja2 templates, and comprehensive quality automation.
+
+- [C++ Bootstrap Template](#c-bootstrap-template)
+  - [✨ What Makes This Template Special](#-what-makes-this-template-special)
+  - [Quick Start](#quick-start)
+  - [What's Included](#whats-included)
+    - [Build Systems (Choose Your Favorite!)](#build-systems-choose-your-favorite)
+    - [Tooling \& Automation](#tooling--automation)
+    - [Code Quality](#code-quality)
+    - [Testing \& Coverage](#testing--coverage)
+    - [CI/CD](#cicd)
+  - [Project Structure](#project-structure)
+  - [Common Commands](#common-commands)
+    - [Mise Tasks (Recommended)](#mise-tasks-recommended)
+    - [Taskfile (Alternative)](#taskfile-alternative)
+  - [Key Features](#key-features)
+    - [1. Template-Driven Configuration](#1-template-driven-configuration)
+    - [2. Mise Tool Management](#2-mise-tool-management)
+    - [3. Hedron Compile Commands for Bazel](#3-hedron-compile-commands-for-bazel)
+    - [4. Pre-commit Hooks](#4-pre-commit-hooks)
+    - [5. GitHub Actions Integration](#5-github-actions-integration)
+  - [Requirements](#requirements)
+    - [Auto-Installed by Mise](#auto-installed-by-mise)
+    - [Manual Installation](#manual-installation)
+    - [Optional](#optional)
+  - [Configuration](#configuration)
+    - [Build System Selection](#build-system-selection)
+    - [Coverage Tools](#coverage-tools)
+  - [Code Characteristics](#code-characteristics)
+    - [Performance Optimizations](#performance-optimizations)
+    - [Safety Features](#safety-features)
+    - [Modern C++20 Features](#modern-c20-features)
+  - [License](#license)
+  - [Support](#support)
+
+## ✨ What Makes This Template Special
+
+- 🎯 **Three Build Systems**: Bazel 8, CMake 4.1.2, and XMake 3.0.3 - all with full feature parity
+- 🔧 **Mise-Powered Build Isolation**: Complete environment isolation - no local tool installation needed
+- 🔗 **Task Integration**: Task runner works via `mise exec -- task` for isolated execution
+- 📋 **Jinja2 Templates**: Build configurations auto-generated from templates - consistent across all systems
+- 🚀 **Zero Manual Setup**: One command gets you building, testing, and linting
+- 🎨 **Hedron Compile Commands**: Bazel now supports full clang-tidy integration via compile_commands.json
+- 🤖 **GitHub Actions**: Reusable composite actions for CI/CD with caching
 
 ## Quick Start
 
-**Bootstrap a new project:**
-
 ```bash
-uvx --from git+https://github.com/templ-project/cpp.git bootstrap ./my-project
-cd my-project
-task build  # Dependencies are automatically fetched by CMake/XMake
-task test
+# Clone or bootstrap the template
+git clone https://github.com/templ-project/cpp.git my-project
 ```
 
-That's it! You now have a fully configured C++ project with automatic dependency management.
+or
+
+```bash
+# Use our proprietary script to scaffold the template
+uvx --from git+https://github.com/templ-project/cpp.git bootstrap ./my-project
+```
+
+then
+
+```bash
+cd my-project
+rm -rf .git # if you used git clone
+
+# Install mise (if not already installed)
+curl https://mise.run | sh
+
+# Everything auto-installs on first run
+mise trust               # Trust the setup
+mise run build           # Builds with CMake by default
+mise run test            # Runs tests with coverage
+mise run lint            # Lints with clang-tidy
+
+# Try other build systems
+mise run build --build-system bazel
+mise run test --build-system xmake
+```
 
 ## What's Included
 
-- ✅ **C++20** - Modern C++ with Google C++ Style Guide
-- ✅ **Clang/LLVM Required** - Strict Clang-only build with libc++ on Linux/macOS
-- ✅ **Google Test** - Unit testing framework (auto-fetched via CMake FetchContent)
-- ✅ **CMake + XMake** - Dual build system support with automatic dependency management
-- ✅ **Clang-format + Clang-tidy** - Automatic code formatting and linting
-- ✅ **Python + UV Automation** - All formatting, linting, and hooks managed via Python scripts
-- ✅ **Address Sanitizer** - Memory safety checks in debug builds (all platforms)
-- ✅ **Taskfile** - Modern task automation (build, test, format, lint, validate)
-- ✅ **Pre-commit Hooks** - Automated quality checks before commits
-- ✅ **Doxygen** - API documentation generation
-- ✅ **CI/CD** - GitHub Actions workflows for Linux, macOS, and Windows
-- ✅ **JSCPD** - Duplicate code detection
+### Build Systems (Choose Your Favorite!)
 
-## Common Commands
+- ✅ **Bazel 8** - Google's build system with Hedron compile commands for linting
+- ✅ **CMake 4.1.2** (latest) - Industry standard with FetchContent for dependencies
+- ✅ **XMake 3.0.3** - Modern Lua-based build system with package management
 
-### Essential Tasks
+### Tooling & Automation
 
-```bash
-task build             # Build the project (default: CMake)
-task test              # Run all tests (unit + integration)
-task run               # Run the application
-task clean             # Clean all build artifacts
-```
-
-### Build System Selection
-
-```bash
-task build:cmake       # Build using CMake
-task build:xmake       # Build using XMake
-task test:cmake        # Run tests with CMake/CTest
-task test:xmake        # Run tests with XMake
-```
+- ✅ **Mise** - Build isolation manager (no local tools required - everything auto-installed)
+- ✅ **Task** - Modern task runner (run via `mise exec -- task` for isolation)
+- ✅ **Jinja2 Templates** - Build configs generated from `templates/` directory
+- ✅ **Python Scripts** - Format/lint automation with staged file support
+- ✅ **Complete Isolation** - All tools (Clang, CMake, Bazel, XMake, Python, Node) managed by mise
 
 ### Code Quality
 
-```bash
-task format            # Format code with clang-format
-task format:check      # Check formatting without changes
-task lint              # Lint and auto-fix with clang-tidy
-task lint:check        # Lint without auto-fix
-task duplicate-check   # Check for duplicate code (JSCPD)
-task validate          # Run full CI pipeline (format, lint, test)
-```
+- ✅ **Clang/LLVM 20.1.8** - Latest compiler with libc++ on Linux/macOS
+- ✅ **Clang-format** - Auto-formatting (Google style, 80-column)
+- ✅ **Clang-tidy** - Comprehensive linting (bugprone, modernize, performance)
+- ✅ **Pre-commit Hooks** - Auto-fix formatting, linting, duplicates before commit
+- ✅ **JSCPD** - Duplicate code detection with badge generation
 
-### Development Tools
+### Testing & Coverage
 
-```bash
-task docs              # Generate Doxygen documentation
-task hooks:install     # Install git pre-commit hooks
-task debug             # Run with GDB debugger
-task valgrind          # Run with Valgrind memory checker
-task test:coverage     # Run tests with coverage report
-task test:watch        # Watch mode for tests
-```
+- ✅ **Google Test** - Unit testing (auto-fetched by all build systems)
+- ✅ **Coverage Reports** - gcovr/lcov support (CMake & XMake)
+- ✅ **Address Sanitizer** - Memory safety in debug builds
+- ✅ **Integration Tests** - Simple no-dependency test suite
+
+### CI/CD
+
+- ✅ **GitHub Actions** - Composite action for setup-tools (Task + mise)
+- ✅ **Multi-Build Testing** - All three build systems tested in CI
+- ✅ **Caching** - mise tools cached per OS for fast CI runs
+- ✅ **Sequential Matrix** - Prevents rate limits and resource exhaustion
 
 ## Project Structure
 
-```text
-src/
-├── main.cpp           # Main entry point
-├── greeter.cpp        # Example module implementation
-└── CMakeLists.txt     # CMake source configuration
-
-include/
-└── greeter.hpp        # Example module header (with string_view optimizations)
-
-tests/
-├── unit/
-│   └── test_greeter.cpp    # Google Test unit tests
-├── integration/
-│   └── test_simple.cpp     # Simple no-dependency tests
-└── CMakeLists.txt          # Test configuration
-
-scripts/
-├── format.py          # Code formatting automation
-├── lint.py            # Linting automation
-└── which.py           # Tool detection utility
+```
+.
+├── .github/
+│   ├── actions/
+│   │   └── setup-tools/        # Composite action (Task + mise + caching)
+│   └── workflows/
+│       └── ci.build.yml        # Main CI pipeline
+├── .mise.toml                  # Tool versions and task definitions
+├── Taskfile.yml                # Alternative task runner config
+├── templates/                  # Jinja2 templates for build configs
+│   ├── BUILD.bazel.j2          # Bazel main build
+│   ├── tests_BUILD.bazel.j2    # Bazel tests
+│   ├── MODULE.bazel.j2         # Bazel modules (includes Hedron)
+│   ├── WORKSPACE.j2            # Bazel workspace
+│   ├── .bazelrc.j2             # Bazel config
+│   ├── CMakeLists.txt.j2       # CMake main build
+│   ├── src_CMakeLists.txt.j2   # CMake src (auto-scans *.cpp)
+│   └── xmake.lua.j2            # XMake build
+├── scripts/
+│   ├── compile_templates.py    # Template compiler
+│   ├── format.py               # Formatting automation
+│   ├── lint.py                 # Linting automation
+│   └── which.py                # Tool detection
+├── src/
+│   ├── main.cpp                # Entry point
+│   └── greeter.cpp             # Example module
+├── include/
+│   └── greeter.hpp             # Example header (string_view optimized)
+└── tests/
+    ├── unit/
+    │   └── test_greeter.cpp    # Google Test unit tests
+    └── integration/
+        └── test_simple.cpp     # Simple integration tests
 ```
 
-## Additional Resources
+## Common Commands
 
-- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to this project
-- **[Changelog](CHANGELOG.md)** - Version history and changes
+### Mise Tasks (Recommended)
+
+```bash
+# Building
+mise run build                  # CMake (default)
+mise run build --build-system bazel
+mise run build --build-system xmake
+
+# Testing
+mise run test                   # Runs tests with coverage
+mise run test --build-system bazel
+
+# Code Quality
+mise run format --staged        # Format staged files
+mise run lint --fix             # Lint with auto-fix
+mise run duplicate-check        # Check duplicates, update badge
+
+# Cleanup
+mise run clean                  # Remove all build artifacts
+
+# Full Validation
+mise run validate               # Format + lint + test + build (all systems)
+```
+
+### Taskfile (Alternative)
+
+```bash
+# If not used with mise, it will rely on OS installed tools
+
+mise exec -- task build                         # Build with CMake
+mise exec -- task build CPP_BUILD_SYSTEM=bazel  # Build with Bazel
+mise exec -- task test CPP_BUILD_SYSTEM=xmake   # Test with XMake
+mise exec -- task lint                          # Lint code
+mise exec -- task validate                      # Full CI pipeline
+```
+
+## Key Features
+
+### 1. Template-Driven Configuration
+
+All build configs are generated from Jinja2 templates:
+
+```bash
+# Happens automatically during build, but you can also run manually:
+python scripts/compile_templates.py --build-system cmake --compiler clang++
+```
+
+Variables like `{{ project_name }}`, `{{ compiler }}`, `{{ build_type }}` are injected automatically.
+
+### 2. Mise Tool Management
+
+`.mise.toml` manages all tools:
+
+- Clang/LLVM 20.1.8 (via HTTP backend)
+- Bazel 8 (via GitHub backend)
+- CMake latest (via GitHub backend)
+- XMake 3.0.3 (via GitHub backend)
+- Python 3.11+, Node.js, UV package manager
+
+**No manual installation needed!** Just run `mise install`.
+
+### 3. Hedron Compile Commands for Bazel
+
+Bazel now generates `compile_commands.json` using [Hedron's Compile Commands Extractor](https://github.com/hedronvision/bazel-compile-commands-extractor):
+
+```bash
+# Automatically runs during build
+bazel run @hedron_compile_commands//:refresh_all
+```
+
+This enables full clang-tidy support for Bazel builds!
+
+### 4. Pre-commit Hooks
+
+Automatically runs on every commit:
+
+- **Clang-format**: Auto-fixes formatting, stages changes
+- **Clang-tidy**: Auto-fixes linting issues, stages changes
+- **JSCPD**: Updates duplicate detection badge, stages it
+- **File validation**: YAML, JSON, TOML, trailing whitespace
+
+```bash
+# Install hooks
+pre-commit install
+
+# Or via mise/task
+mise run uv:sync  # Installs pre-commit and hooks
+```
+
+### 5. GitHub Actions Integration
+
+Custom composite action in `.github/actions/setup-tools/`:
+
+```yaml
+- uses: actions/checkout@v4
+- uses: ./.github/actions/setup-tools  # Sets up Task, mise, caching
+```
+
+Handles:
+
+- Task installation
+- Mise installation (cross-platform)
+- Tool caching (`~/.local/share/mise`, `~/.local/state/mise`)
+- Python venv setup with UV
 
 ## Requirements
 
-### Required
+### Auto-Installed by Mise
 
-- **Clang/LLVM** - This project requires Clang (versions 16-20 supported)
-  - Ubuntu/Debian: `sudo apt install clang libc++-dev libc++abi-dev`
-  - macOS: `brew install llvm` (or use built-in Clang)
-  - Windows: Download from [LLVM releases](https://releases.llvm.org/)
-- **CMake 3.20+** - For CMake build system
-- **GDB** - For debugging (`task debug`)
-- **Node.js** - For JSCPD duplicate detection (auto-installed via npm)
-- **Python 3.11+** - For scripts and bootstrap
-- **Task** - Task automation (`brew install go-task` or see [taskfile.dev](https://taskfile.dev))
-- **UV** - Python package manager (`pip install uv`)
-- **Valgrind** - For memory profiling (`task valgrind`, Linux/macOS only)
+- **Clang/LLVM 20.1.8** - Compiler and tools
+- **Bazel 8** - Build system
+- **CMake 4.1.2** (latest) - Build system
+- **XMake 3.0.3** - Build system
+- **Python 3.11+** - Scripting
+- **Node.js** - For JSCPD
+- **UV** - Python package manager
+
+### Manual Installation
+
+- **Mise** - Build isolation manager ([mise.jdx.dev](https://mise.jdx.dev))
+
+  ```bash
+  curl https://mise.run | sh
+  ```
+
+  **Note**: Mise provides complete build isolation. All other tools (Clang, CMake, Bazel, XMake, Python, Node) are auto-installed in isolated environments. No local installation needed!
+
+- **Task** (Optional) - Task runner ([taskfile.dev](https://taskfile.dev))
+
+  ```bash
+  brew install go-task  # macOS
+  # Or download from releases
+  ```
+
+  **Note**: Task must be run via `mise exec -- task` for isolated execution. Direct `task` commands require all tools installed locally (not recommended).
+
+  ```bash
+  brew install go-task  # macOS
+  # Or download from releases
+  ```
 
 ### Optional
 
-- **XMake** - Alternative build system (`brew install xmake` or see [xmake.io](https://xmake.io))
-- **Doxygen** - For documentation generation (`task docs`)
+- **GDB** - Debugging (`mise run debug`)
+- **Valgrind** - Memory profiling (Linux/macOS)
 
 ## Configuration
 
-All configuration follows Google C++ Style Guide with modern C++ best practices:
+### Build System Selection
 
-### Build Configuration
+Set default in `.mise.toml`:
 
-- **CMake**: `CMakeLists.txt` - Modern CMake 3.20+ with strict Clang enforcement
-  - Uses CMake FetchContent for Google Test
-  - Enforces libc++ on Linux/macOS for full LLVM stack
-  - Address Sanitizer enabled in debug builds (all platforms)
-- **XMake**: `xmake.lua` - Alternative build system with same requirements
-- **Taskfile**: `Taskfile.yml` - Task automation and workflow management
+```toml
+[env]
+CPP_BUILD_SYSTEM = "cmake"  # or "bazel" or "xmake"
+CPP_BUILD_TYPE = "Release"  # or "Debug"
+CPP_COMPILER = "clang++"
+```
 
-### Quality Tools
+### Coverage Tools
 
-- **Clang-format**: `.clang-format` - Google style, 80-column limit
-- **Clang-tidy**: `.clang-tidy` - Comprehensive checks (bugprone, modernize, performance)
-- **Pre-commit**: `.pre-commit-config.yaml` - Git hooks for automated checks
-- **JSCPD**: `.jscpd.json` - Code duplication detection and badge generation
+Choose in `.mise.toml`:
 
-### API Documentation
-
-- **Doxygen**: `Doxyfile` - API documentation with full class/function docs
-- **Markdown**: `.markdownlint.json` - Markdown linting configuration
-
-## Automated Quality Checks
-
-### Pre-commit Hooks (run on every commit)
-
-- ✅ **Code Formatting** - Auto-fix with clang-format
-- ✅ **Linting** - Auto-fix with clang-tidy
-- ✅ **Duplicate Detection** - Check for code duplication with JSCPD
-- ✅ **Markdown Validation** - Auto-fix markdown files
-- ✅ **File Validation** - Check YAML, JSON, TOML, trailing whitespace
-
-### Pre-push Hooks (run before pushing)
-
-- ✅ **Full Test Suite** - Unit tests + integration tests
-- ✅ **Build Verification** - Ensure project builds successfully
-
-Install hooks with: `task hooks:install`
+```bash
+mise run test --cov-tool gcovr  # Default, generates HTML
+mise run test --cov-tool lcov   # Alternative
 
 ## Using as a Library
 
@@ -188,7 +346,7 @@ std::string_view trimmed = cpp_template::Trim("  spaces  ");
 std::cout << trimmed << '\n';  // "spaces"
 ```
 
-## Key Features
+## Code Characteristics
 
 ### Performance Optimizations
 

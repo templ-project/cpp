@@ -1,7 +1,7 @@
 add_rules("mode.debug", "mode.release")
 
--- Project configuration
-set_project("cpp-template")
+-- Project configuration from template
+set_project("{{ project_name }}")
 set_version("1.0.0")
 set_description("A C++ Bootstrap/Template project using modern tools and best practices")
 
@@ -27,29 +27,53 @@ elseif is_mode("release") then
     add_defines("NDEBUG")
 end
 
--- -- Compiler configuration
--- set_toolchains("clang")
+-- Configure output directories to use {{ build_dir }}/<mode>
+-- Use $(mode) to get the actual build mode (debug/release) at build time
+set_targetdir("{{ build_dir }}/$(mode)")
+set_objectdir("{{ build_dir }}/$(mode)/.objs")
 
--- More explicit Clang enforcement
+-- Compiler configuration from template
+{% if compiler == 'msvc' %}
 if is_plat("windows") then
-    set_toolchains("clang-cl")  -- Use clang-cl on Windows
+    set_toolchains("msvc")
+end
+{% elif compiler == 'g++' %}
+if is_plat("macosx", "linux") then
+    set_toolchains("gcc")
+    -- Add coverage flags for Debug builds
+    if is_mode("debug") then
+        add_cxflags("--coverage")
+        add_ldflags("--coverage")
+    end
+end
+{% elif compiler == 'clang++' %}
+if is_plat("windows") then
+    set_toolchains("clang")  -- Use regular clang (not clang-cl) for coverage support
+    -- Add coverage flags for Debug builds
+    if is_mode("debug") then
+        add_cxflags("--coverage")
+        add_ldflags("--coverage")
+    end
 elseif is_plat("macosx") then
     set_toolchains("clang")
     add_cxflags("-stdlib=libc++")  -- Use libc++ on macOS (built-in)
     add_ldflags("-stdlib=libc++", "-lc++abi")
+    -- Add coverage flags for Debug builds
+    if is_mode("debug") then
+        add_cxflags("--coverage")
+        add_ldflags("--coverage")
+    end
 elseif is_plat("linux") then
     set_toolchains("clang")
     -- On Linux, use libstdc++ to match pre-built gtest from xmake packages
     -- libc++ would require building gtest from source with matching stdlib
-end
-
--- Validate compiler at configuration time
-before_build(function (target)
-    local cc = target:tool("cxx")
-    if not cc or not cc:find("clang") then
-        raise("This project requires Clang/LLVM. Please install Clang.")
+    -- Add coverage flags for Debug builds
+    if is_mode("debug") then
+        add_cxflags("--coverage")
+        add_ldflags("--coverage")
     end
-end)
+end
+{% endif %}
 
 -- Disable -Werror for better third-party compatibility
 add_cxflags("-Wall", "-Wextra", "-Wpedantic")
@@ -58,16 +82,17 @@ add_cxflags("-Wall", "-Wextra", "-Wpedantic")
 add_includedirs("include")
 
 -- Add packages
-add_requires("gtest")
+-- Note: SDK flags for macOS are set via environment variables in .mise.toml
+add_requires("gtest 1.15.2")
 
--- Target: main executable
-target("cpp-template")
+-- Target: main executable (using project name from template)
+target("{{ project_name }}")
     set_kind("binary")
     add_files("src/*.cpp")
     add_headerfiles("include/**.hpp")
 
 -- Target: Unit tests using Google Test
-target("cpp-template-tests")
+target("{{ project_name }}-tests")
     set_kind("binary")
     set_default(false)
     add_files("tests/unit/test_greeter.cpp", "src/greeter.cpp")
@@ -83,7 +108,7 @@ target("cpp-template-tests")
     end)
 
 -- Target: Integration tests (simple, no external dependencies)
-target("cpp-template-tests-simple")
+target("{{ project_name }}-tests-simple")
     set_kind("binary")
     set_default(false)
     add_files("tests/integration/test_simple.cpp", "src/greeter.cpp")

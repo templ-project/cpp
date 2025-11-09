@@ -7,11 +7,16 @@
   ],
   "output": ".jscpd",
   "ignore": [
-    "build/**",
-    "docs/**",
-    "_install/**",
+    ".xmake/**",
     ".git/**",
-    ".xmake/**"
+    ".venv/**",
+    "_install/**",
+    "build/**",
+    "compile_commands.json",
+    "docs/**",
+    "external/**",
+    "scripts/**",
+    "templates/**"
   ],
   "absolute": true,
   "gitignore": true,
