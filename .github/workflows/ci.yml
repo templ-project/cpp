@@ -12,7 +12,7 @@ jobs:
   build:
     name: Build ${{ matrix.os }}
     if: |
-      !startsWith(github.event.head_commit.message, 'chore: version update') && 1 == 0
+      !startsWith(github.event.head_commit.message, 'chore: version update')
     strategy:
       matrix:
         os:
