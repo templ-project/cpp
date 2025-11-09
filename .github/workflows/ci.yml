@@ -8,47 +8,48 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  # # Validation & Build matrix for different platforms and configurations
-  # build:
-  #   name: Build ${{ matrix.os }}
-  #   if: |
-  #     !startsWith(github.event.head_commit.message, 'chore: version update')
-  #   strategy:
-  #     matrix:
-  #       os:
-  #         - macos-latest
-  #         - ubuntu-latest
-  #         - windows-latest
-  #   uses: ./.github/workflows/ci.build.yml
-  #   with:
-  #     os: ${{ matrix.os }}
-  #     build_system: '["bazel", "xmake", "cmake"]'
-
-  # Version bump (only on main branch push, uses conventional commits)
-  version:
-    name: Bump Version
+  # Validation & Build matrix for different platforms and configurations
+  build:
+    name: Build ${{ matrix.os }}
     if: |
-      github.event_name == 'push'
-      && github.ref == 'refs/heads/main'
-    # && (needs.build.result == 'success' || needs.build.result == 'skipped')
-    # needs: [build]
-    uses: ./.github/workflows/ci.version.yml
-    permissions:
-      contents: write
-      pull-requests: write
-    secrets:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
-  # Release (only on main branch push after version bump)
-  release:
-    name: Create Release
-    if: |
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && (needs.version.result == 'success' || needs.version.result == 'skipped')
-    needs: [version]
-    uses: ./.github/workflows/ci.release.yml
-    permissions:
-      contents: write
+      !startsWith(github.event.head_commit.message, 'chore: version update')
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+    uses: ./.github/workflows/ci.build.yml
     with:
-      version_tag: ${{ needs.version.outputs.version_tag }}
-      prerelease: false
+      os: ${{ matrix.os }}
+      build_system: '["bazel", "xmake", "cmake"]'
+
+  # TODO: Version bummp and Release jobs are disabled for now because of a Bumpalicious issue
+  # # Version bump (only on main branch push, uses conventional commits)
+  # version:
+  #   name: Bump Version
+  #   if: |
+  #     github.event_name == 'push'
+  #     && github.ref == 'refs/heads/main'
+  #   # && (needs.build.result == 'success' || needs.build.result == 'skipped')
+  #   # needs: [build]
+  #   uses: ./.github/workflows/ci.version.yml
+  #   permissions:
+  #     contents: write
+  #     pull-requests: write
+  #   secrets:
+  #     GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+  # # Release (only on main branch push after version bump)
+  # release:
+  #   name: Create Release
+  #   if: |
+  #     github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #     && (needs.version.result == 'success' || needs.version.result == 'skipped')
+  #   needs: [version]
+  #   uses: ./.github/workflows/ci.release.yml
+  #   permissions:
+  #     contents: write
+  #   with:
+  #     version_tag: ${{ needs.version.outputs.version_tag }}
+  #     prerelease: false

@@ -24,8 +24,7 @@ jobs:
 
       - name: Bump version with Bumpalicious
         id: bump
-        # uses: dragoscops/bumpalicious@v3
-        uses: dragoscops/bumpalicious@main3
+        uses: dragoscops/bumpalicious@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pr: "true"
