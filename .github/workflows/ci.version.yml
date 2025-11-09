@@ -8,6 +8,10 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      GH_TOKEN:
+        description: "GitHub token for version bump and PR creation"
+        required: true
     outputs:
       version_tag:
         description: "The version tag that was created (e.g., v1.2.3)"
@@ -32,13 +36,11 @@ jobs:
         id: bump
         uses: dragoscops/bumpalicious@v3
         with:
-          github_token: ${{ secrets.GH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           pr: "true"
           pr_auto_merge: ${{ inputs.pr_auto_merge }}
           pr_message: "chore: version bump"
           workspaces: ".:text"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Output new version
         run: |
