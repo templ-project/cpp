@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.0.4 (2025-11-09)
+
+### Bug Fixes
+
+* re-activated full pipeline & updated readme ([2b43ab4](https://github.com/templ-project/cpp/commit/2b43ab4cea73cf41c61b6a2b9fa755d54421509a))
+
 ## 0.0.3 (2025-11-09)
 
 ### Bug Fixes
