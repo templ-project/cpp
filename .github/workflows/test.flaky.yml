@@ -1,0 +1,13 @@
+name: Test Flaky Job
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  flaky-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Random success or failure
+        run: |
+          echo "Rolling the dice..."
+          exit $((RANDOM % 2))
