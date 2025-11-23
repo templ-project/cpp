@@ -71,6 +71,21 @@ windows-x64 = { asset_pattern = "xmake-bundle-v*.win64.exe", bin = "xmake.exe" }
 # Other Tools
 # ==========================================================================
 
+# Doxygen - Documentation generator
+# Note: Windows users should install via chocolatey, winget, or scoop instead
+# - choco install doxygen.install
+# - winget install doxygen.doxygen
+# - scoop install doxygen
+# Linux/macOS can use mise or system package manager
+#
+# [tools."github:doxygen/doxygen"]
+# version = "latest"
+#
+# [tools."github:doxygen/doxygen".platforms]
+# linux-x64 = { asset_pattern = "doxygen-*.linux.bin.tar.gz" }
+# macos-arm64 = { asset_pattern = "Doxygen-*.dmg" }
+# # Windows: Installer not suitable for mise, use chocolatey/winget/scoop instead
+
 # https://github.com/koalaman/shellcheck/releases
 # e.g. https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.x86_64.tar.xz
 #

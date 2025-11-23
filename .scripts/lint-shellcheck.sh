@@ -69,11 +69,20 @@ get_shell_scripts() {
   else
     # Find all .sh files excluding common directories
     find . -type f -iname "*.sh" \
-      -not -path "./node_modules/*" \
-      -not -path "./.husky/*" \
+      -not -path "./.cache/*" \
       -not -path "./.git/*" \
+      -not -path "./.husky/*" \
+      -not -path "./.task/*" \
+      -not -path "./.venv/*" \
+      -not -path "./bazel*/*" \
+      -not -path "./build/*" \
+      -not -path "./dist/*" \
+      -not -path "./external/*" \
+      -not -path "./node_modules/*" \
+      -not -path "./target/*" \
       -not -path "./vendor/*" \
-      -not -path "./target/*"
+      -not -path "./vendors/*" \
+      -not -path "./venv/*"
   fi
 }
 

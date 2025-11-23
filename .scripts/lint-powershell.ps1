@@ -41,21 +41,22 @@ class Colors {
 
 # Folders to exclude from linting
 $IGNORED_FOLDERS = @(
-  'node_modules',
-  '.venv',
-  'venv',
-  '.git',
-  'vendor',
-  'target',
-  'dist',
-  'build',
-  'external',
   '.cache',
+  '.git',
+  '.husky',
   '.task',
+  '.venv',
   'bazel-bin',
+  'bazel-cpp',
   'bazel-out',
   'bazel-testlogs',
-  'bazel-cpp'
+  'build',
+  'dist',
+  'external',
+  'node_modules',
+  'target',
+  'vendor',
+  'venv'
 )
 
 # ============================================================================

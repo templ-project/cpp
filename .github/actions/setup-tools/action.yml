@@ -43,14 +43,22 @@ runs:
         mise self-update
         mise --version
 
+    - run: sudo apt install -y build-essential lcov
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+
+    - run: brew install gcc lcov
+      if: ${{ runner.os == 'macOS' }}
+      shell: bash
+
     # === mise === cache ===
     - uses: actions/cache@v4
       continue-on-error: true
       if: ${{ runner.os != 'Windows' }}
       with:
-        key: ${{ runner.os }}-${{ runner.arch }}-mise-${{ hashFiles('.mise.lock') }}
+        key: cpp-${{ runner.os }}-${{ runner.arch }}-mise-${{ hashFiles('.mise.lock') }}
         restore-keys: |
-          ${{ runner.os }}-${{ runner.arch }}-mise-
+          cpp-${{ runner.os }}-${{ runner.arch }}-mise-
         path: |
           ~/.local/share/mise
           ~/.cache/mise
@@ -61,7 +69,7 @@ runs:
       with:
         key: ${{ runner.os }}-${{ runner.arch }}-mise-${{ hashFiles('.mise.lock') }}
         restore-keys: |
-          ${{ runner.os }}-${{ runner.arch }}-mise-
+          cpp-${{ runner.os }}-${{ runner.arch }}-mise-
         path: |
           ~\AppData\Local\mise\installs
           ~\.cache\mise
@@ -73,7 +81,7 @@ runs:
       with:
         key: ${{ runner.os }}-${{ runner.arch }}-uv-${{ hashFiles('uv.lock') }}
         restore-keys: |
-          ${{ runner.os }}-${{ runner.arch }}-uv-
+          cpp-${{ runner.os }}-${{ runner.arch }}-uv-
         path: |
           .venv
 

@@ -48,12 +48,8 @@ if is_plat("macosx", "linux") then
 end
 {% elif compiler == 'clang++' %}
 if is_plat("windows") then
-    set_toolchains("clang")  -- Use regular clang (not clang-cl) for coverage support
-    -- Add coverage flags for Debug builds
-    if is_mode("debug") then
-        add_cxflags("--coverage")
-        add_ldflags("--coverage")
-    end
+    set_toolchains("clang")  -- Use regular clang (not clang-cl)
+    -- Note: Coverage not supported on Windows with clang++ due to linker limitations
 elseif is_plat("macosx") then
     set_toolchains("clang")
     add_cxflags("-stdlib=libc++")  -- Use libc++ on macOS (built-in)

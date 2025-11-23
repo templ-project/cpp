@@ -17,6 +17,17 @@ backend = 'github:PowerShell/PowerShell[platforms={ linux-x64 = { asset_pattern 
 version = "8.4.2"
 backend = 'github:bazelbuild/bazel[bin=bazel,platforms={ linux-x64 = { asset_pattern = "bazel-*-linux-88_x64" }, macos-arm64 = { asset_pattern = "bazel-*-darwin-arm64" }, windows-x64 = { asset_pattern = "bazel-*-windows-x86_64.exe", bin = "bazel.exe" } }]'
 
+[[tools."github:doxygen/doxygen"]]
+version = "Release_1_15_0"
+backend = 'github:doxygen/doxygen[platforms={ linux-x64 = { asset_pattern = "doxygen-*.linux.bin.tar.gz" }, macos-arm64 = { asset_pattern = "Doxygen-*.dmg" }, windows-x64 = { asset_pattern = "doxygen-*-setup.exe" } }]'
+
+[tools."github:doxygen/doxygen".platforms.windows-x64]
+checksum = "sha256:9cffa650bbc7f728271972fb5a18a38fa79a5def225a8c0e4156d0b0d3b1d7b5"
+name = "doxygen-1.15.0-setup.exe"
+size = 60769040
+url = "https://github.com/doxygen/doxygen/releases/download/Release_1_15_0/doxygen-1.15.0-setup.exe"
+url_api = "https://api.github.com/repos/doxygen/doxygen/releases/assets/307295461"
+
 [[tools."github:koalaman/shellcheck"]]
 version = "0.11.0"
 backend = 'github:koalaman/shellcheck[platforms={ linux-x64 = { asset_pattern = "shellcheck-*.linux.armv6hf.tar.xz" }, macos-arm64 = { asset_pattern = "shellcheck-*.linux.x86_64.tar.xz" }, windows-x64 = { asset_pattern = "shellcheck-*.zip" } }]'
