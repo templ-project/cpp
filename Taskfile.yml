@@ -3,6 +3,7 @@ version: '3'
 vars:
   # mise dependent
   __TF_MISE_E: 'mise trust; mise exec --'
+  __TF_MISE_E_UV_RUN: 'mise trust; mise exec -- uv run'
   # os dependent
   __TF_COMMAND_WRAPPER:
     sh: |
@@ -67,123 +68,108 @@ tasks:
         platforms: [windows]
     desc: 'Print current build environment variables'
 
-  # build:
-  #   desc: "Build project (system: {{.CPP_BUILD_SYSTEM}}, type: {{.CPP_BUILD_TYPE}})"
-  #   cmds:
-  #     - cmd: |
-  #         echo "{{.__TF_HEADER_LINE}}"
-  #         echo "Compiling for {{OS}}/{{ARCH}}, using {{.CPP_BUILD_SYSTEM}} and {{.CPP_COMPILER}}"
-  #         echo "{{.__TF_HEADER_LINE}}"
-  #         {{if ne OS "windows"}}{{if eq .CPP_COMPILER "msvc"}}
-  #           echo "❌ MSVC compiler is only supported on Windows."
-  #           exit 1
-  #         {{end}}{{end}}
-  #     - task: print:env
-  #     - task: "build:{{.CPP_BUILD_SYSTEM}}"
-  #       vars:
-  #         CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
-  #         CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
-  #         CPP_COMPILER: "{{.CPP_COMPILER}}"
-  #         CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
-  #   sources:
-  #     - src/**/*.cpp
-  #     - src/**/*.hpp
-  #     - include/**/*.hpp
-  #     - include/**/*.h
-  #     - tests/**/*.cpp
+  build:
+    desc: 'Build project (system: {{.CPP_BUILD_SYSTEM}}, type: {{.CPP_BUILD_TYPE}})'
+    cmds:
+      - cmd: |
+          echo "{{.__TF_HEADER_LINE}}"
+          echo "Compiling for {{OS}}/{{ARCH}}, using {{.CPP_BUILD_SYSTEM}} and {{.CPP_COMPILER}}"
+          echo "{{.__TF_HEADER_LINE}}"
+          {{if ne OS "windows"}}{{if eq .CPP_COMPILER "msvc"}}
+            echo "❌ MSVC compiler is only supported on Windows."
+            exit 1
+          {{end}}{{end}}
+      - task: print:env
+      - task: 'build:{{.CPP_BUILD_SYSTEM}}'
+        vars:
+          CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
+          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+          CPP_COMPILER: '{{.CPP_COMPILER}}'
+          CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+    sources:
+      - src/**/*.cpp
+      - src/**/*.hpp
+      - include/**/*.hpp
+      - include/**/*.h
+      - tests/**/*.cpp
 
-  # build:bazel:
-  #   desc: "Build project using Bazel"
-  #   sources:
-  #     - BUILD.bazel
-  #     - tests/BUILD.bazel
-  #     - .bazelrc
-  #     - MODULE.bazel
-  #     - WORKSPACE
-  #   generates:
-  #     - bazel-bin/{{.CPP_PROJECT_NAME}}
-  #   env:
-  #     CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
-  #     CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
-  #     CPP_COMPILER: "{{.CPP_COMPILER}}"
-  #     CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
-  #   cmds:
-  #     - python scripts/compile_templates.py --build-system bazel --compiler {{.CPP_COMPILER}}
-  #     - |
-  #       BAZEL_CONFIG="{{if eq .CPP_BUILD_TYPE "Debug"}}--compilation_mode=dbg{{else}}--compilation_mode=opt{{end}}"
-  #       {{.__TF_MISE_E}} bazel build //:{{.CPP_PROJECT_NAME}} $BAZEL_CONFIG
+  build:bazel:
+    desc: 'Build project using Bazel'
+    deps:
+      - deps:sync:uv
+    sources:
+      - BUILD.bazel
+      - tests/BUILD.bazel
+      - .bazelrc
+      - MODULE.bazel
+      - WORKSPACE
+    generates:
+      - bazel-bin/{{.CPP_PROJECT_NAME}}
+    env:
+      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
+      CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+      CPP_COMPILER: '{{.CPP_COMPILER}}'
+      CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+    cmds:
+      - |
+        {{.__TF_MISE_E_UV_RUN}} python .scripts/compile_templates.py --build-system bazel --compiler {{.CPP_COMPILER}}
+      - |
+        BAZEL_CONFIG="{{if eq .CPP_BUILD_TYPE "Debug"}}--compilation_mode=dbg{{else}}--compilation_mode=opt{{end}}"
+        {{.__TF_MISE_E}} bazel build //:{{.CPP_PROJECT_NAME}} $BAZEL_CONFIG
 
-  #       # Generate compile_commands.json for clang-tidy using Hedron
-  #       {{if ne .CPP_COMPILER "msvc"}}
-  #       {{.__TF_MISE_E}} bazel run @hedron_compile_commands//:refresh_all
-  #       {{end}}
+        # Generate compile_commands.json for clang-tidy using Hedron
+        {{if ne .CPP_COMPILER "msvc"}}
+        {{.__TF_MISE_E}} bazel run @hedron_compile_commands//:refresh_all
+        {{end}}
 
-  # build:cmake:
-  #   desc: "Build project using CMake"
-  #   sources:
-  #     - CMakeLists.txt
-  #     - tests/CMakeLists.txt
-  #   generates:
-  #     - "{{.CPP_BUILD_DIR}}/CMakeCache.txt"
-  #     - "{{.CPP_BUILD_DIR}}/compile_commands.json"
-  #   env:
-  #     CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
-  #     CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
-  #     CPP_COMPILER: "{{.CPP_COMPILER}}"
-  #     CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
-  #   vars:
-  #     CMAKE_GENERATOR: '{{if eq OS "windows"}}{{if eq .CPP_COMPILER "msvc"}}{{.CMAKE_VS_GENERATOR}}{{else}}Ninja{{end}}{{else}}Unix Makefiles{{end}}'
-  #     CMAKE_COMPILER_FLAG: '{{if eq .CPP_COMPILER "msvc"}}{{else}}-DCMAKE_CXX_COMPILER={{.CPP_COMPILER}}{{end}}'
-  #   cmds:
-  #     - python scripts/compile_templates.py --build-system cmake --compiler {{.CPP_COMPILER}}
-  #     - |
-  #       {{.__TF_MISE_E}} cmake -B "{{.CPP_BUILD_DIR}}" -G "{{.CMAKE_GENERATOR}}" \
-  #           -DCMAKE_BUILD_TYPE="{{.CPP_BUILD_TYPE}}" \
-  #           {{.CMAKE_COMPILER_FLAG}} \
-  #           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-  #       {{.__TF_MISE_E}} cmake --build "{{.CPP_BUILD_DIR}}" --parallel
+  build:cmake:
+    desc: 'Build project using CMake'
+    sources:
+      - CMakeLists.txt
+      - tests/CMakeLists.txt
+    generates:
+      - '{{.CPP_BUILD_DIR}}/CMakeCache.txt'
+      - '{{.CPP_BUILD_DIR}}/compile_commands.json'
+    env:
+      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
+      CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+      CPP_COMPILER: '{{.CPP_COMPILER}}'
+      CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+    vars:
+      CMAKE_GENERATOR: '{{if eq OS "windows"}}{{if eq .CPP_COMPILER "msvc"}}{{.CMAKE_VS_GENERATOR}}{{else}}Ninja{{end}}{{else}}Unix Makefiles{{end}}'
+      CMAKE_COMPILER_FLAG: '{{if eq .CPP_COMPILER "msvc"}}{{else}}-DCMAKE_CXX_COMPILER={{.CPP_COMPILER}}{{end}}'
+    cmds:
+      - |
+        {{.__TF_MISE_E_UV_RUN}} python .scripts/compile_templates.py --build-system cmake --compiler {{.CPP_COMPILER}}
+      - |
+        {{.__TF_MISE_E_UV_RUN}} cmake -B "{{.CPP_BUILD_DIR}}" -G "{{.CMAKE_GENERATOR}}" \
+            -DCMAKE_BUILD_TYPE="{{.CPP_BUILD_TYPE}}" \
+            {{.CMAKE_COMPILER_FLAG}} \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        {{.__TF_MISE_E_UV_RUN}} cmake --build "{{.CPP_BUILD_DIR}}" --parallel
 
-  # build:xmake:
-  #   desc: "Build project using XMake"
-  #   sources:
-  #     - xmake.lua
-  #   generates:
-  #     - .xmake/cache/config
-  #     - "{{.CPP_BUILD_DIR}}/compile_commands.json"
-  #   env:
-  #     CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
-  #     CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
-  #     CPP_COMPILER: "{{.CPP_COMPILER}}"
-  #     CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
-  #     '{{if and (eq OS "windows") (eq .CPP_COMPILER "clang++")}}CXXFLAGS': "-Wno-error -Wno-unknown-warning-option"
-  #   vars:
-  #     XMAKE_MODE: '{{if eq .CPP_BUILD_TYPE "Debug"}}debug{{else}}release{{end}}'
-  #   cmds:
-  #     - |
-  #       {{.__TF_MISE_E}} python scripts/compile_templates.py --build-system xmake --compiler {{.CPP_COMPILER}}
-  #     - |
-  #       {{.__TF_MISE_E}} xmake f -m {{.XMAKE_MODE}} -y
-  #       {{.__TF_MISE_E}} xmake build
-  #       {{.__TF_MISE_E}} xmake project -k compile_commands "{{.CPP_BUILD_DIR}}"
-
-  # build:detect:msvc:
-  #   desc: "Detect MSVC compiler on Windows and display configuration"
-  #   cmds:
-  #     - |
-  #       {{if eq OS "windows"}}
-  #       echo "🔍 Detecting Visual Studio installation..."
-  #       echo "VC Path: $BAZEL_VC"
-  #       echo "VC Version: $BAZEL_VC_FULL_VERSION"
-  #       echo "Compiler: {{.CPP_COMPILER}}"
-
-  #       # Test if MSVC is accessible
-  #       "{{if eq .CPP_COMPILER "msvc"}}
-  #         {{.__TF_MISE_E}} powershell -Command "if (Test-Path '$env:BAZEL_VC\\bin\\Hostx64\\x64\\cl.exe'){{.__TF_SEP
-  #           }}{ Write-Host '✅ MSVC cl.exe found' } else { Write-Host '❌ MSVC cl.exe not found' }"
-  #       {{end}}
-  #       {{else}}
-  #       echo "ℹ️ MSVC detection is only available on Windows"
-  #       {{end}}
+  build:xmake:
+    desc: 'Build project using XMake'
+    sources:
+      - xmake.lua
+    generates:
+      - .xmake/cache/config
+      - '{{.CPP_BUILD_DIR}}/compile_commands.json'
+    env:
+      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
+      CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+      CPP_COMPILER: '{{.CPP_COMPILER}}'
+      CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+      '{{if and (eq OS "windows") (eq .CPP_COMPILER "clang++")}}CXXFLAGS': '-Wno-error -Wno-unknown-warning-option'
+    vars:
+      XMAKE_MODE: '{{if eq .CPP_BUILD_TYPE "Debug"}}debug{{else}}release{{end}}'
+    cmds:
+      - |
+        {{.__TF_MISE_E_UV_RUN}} python .scripts/compile_templates.py --build-system xmake --compiler {{.CPP_COMPILER}}
+      - |
+        {{.__TF_MISE_E}} xmake f -m {{.XMAKE_MODE}} -y
+        {{.__TF_MISE_E}} xmake build
+        {{.__TF_MISE_E}} xmake project -k compile_commands "{{.CPP_BUILD_DIR}}"
 
   # ============================================================================
   # Clean Tasks
@@ -196,24 +182,24 @@ tasks:
         rm -rf \
             .bazelrc \
             .cache \
-            .coverage \
             .jscpd/html \
             .task \
             .xmake \
             {{.CPP_BUILD_DIR}} \
             BUILD.bazel \
-            tests/BUILD.bazel \
             CMakeLists.txt \
-            MODULE.bazel \
-            WORKSPACE \
             compile_commands.json \
+            coverage \
             docs-html \
-            node_modules \
-            package-lock.json \
+            MODULE.bazel \
             src/CMakeLists.txt \
+            tests/BUILD.bazel \
+            WORKSPACE \
             xmake.lua
 
         find . -type d -name "bazel-*" | while read d; do rm -rf "$d"; done
+
+        rm -rf ~/AppData/Local/Temp/.xmake*
 
   # ============================================================================
   # Code Quality Tasks
@@ -261,34 +247,123 @@ tasks:
     desc: 'Check code formatting using clang-format'
     silent: true
 
-  # lint:
-  #   desc: "Run linter and fix issues"
-  #   deps:
-  #     - task: build
-  #       vars:
-  #         CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
-  #         CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
-  #   cmds:
-  #     - |
-  #       python scripts/lint.py --build-dir "{{if eq .CPP_BUILD_SYSTEM "bazel"}}.{{else}}{{.CPP_BUILD_DIR}}{{end}}" --fix
+  lint:
+    desc: 'Run linter and fix issues'
+    cmds:
+      - task: lint:eslint
+      - task: lint:powershell
+      - task: lint:shellcheck
+      - task: lint:clang
+      - cmd: echo "✅ Linting completed"
 
-  # lint:check:
-  #   desc: "Run linter without fixing"
-  #   deps:
-  #     - task: build
-  #       vars:
-  #         CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
-  #         CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
-  #   cmds:
-  #     - |
-  #       python scripts/lint.py --build-dir "{{if eq .CPP_BUILD_SYSTEM "bazel"}}.{{else}}{{.CPP_BUILD_DIR}}{{end}}"
+  lint:staged:
+    desc: 'Run linter on staged files and fix issues'
+    cmds:
+      - |
+        {{.__TF_MISE_E}} npx -y lint-staged
+    silent: true
 
-  # duplicate-check:
-  #   desc: "Check for duplicate code using jscpd"
-  #   cmds:
-  #     - "[ ! -d ./node_modules ] && npm install jscpd @jscpd/badge-reporter"
-  #     - npx jscpd src/ include/
-  #     - git add .jscpd/jscpd-badge.svg 2>/dev/null || true
+  lint:eslint:
+    cmds:
+      - |
+        {{.__TF_MISE_E}} npx eslint --fix "./**/*.{json,toml,yaml,yml}"
+      - echo "- ✅ eslint lint completed"
+    desc: 'Lint code using ESLint'
+    silent: true
+
+  lint:clang:
+    deps:
+      - task: build
+        vars:
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+    cmds:
+      - |
+        {{.__TF_MISE_E_UV_RUN}} python .scripts/lint-clang.py --fix
+      - echo "- ✅ clang lint completed"
+    desc: 'Lint code and fix issues'
+    silent: true
+
+  lint:powershell:
+    aliases: [lint:pwsh]
+    cmds:
+      - |
+        {{.__TF_MISE_E}} pwsh -File .scripts/lint-powershell.ps1 -Fix {{if .STAGED}}-Staged{{end}}
+      - echo "- ✅ pwsh lint completed"
+    desc: 'Lint PowerShell scripts using PSScriptAnalyzer'
+    silent: true
+
+  lint:shellcheck:
+    aliases: [lint:sh, lint:bash]
+    cmds:
+      - cmd: |
+          {{.__TF_MISE_E}} bash .scripts/lint-shellcheck.sh --fix {{if .STAGED}}--staged{{end}}
+        platforms: [darwin, linux]
+      - cmd: |
+          {{.__TF_MISE_E}} pwsh -File .scripts/lint-shellcheck.ps1 -Fix {{if .STAGED}}-Staged{{end}}
+        platforms: [windows]
+      - echo "- ✅ bash lint completed"
+    desc: 'Lint shell scripts using ShellCheck'
+    silent: true
+
+  lint:check:
+    desc: 'Run linter without fixing'
+    cmds:
+      - task: lint:check:eslint
+      - task: lint:check:clang
+      - task: lint:check:powershell
+      - task: lint:check:shellcheck
+      - cmd: echo "✅ Linting check completed"
+
+  lint:check:eslint:
+    cmds:
+      - |
+        {{.__TF_MISE_E}} npx eslint "./**/*.{toml,json,yaml,yml}"
+      - echo "- ✅ eslint lint check completed"
+    desc: 'Check config files using eslint'
+    silent: true
+
+  lint:check:clang:
+    deps:
+      - task: build
+        vars:
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+    cmds:
+      - |
+        {{.__TF_MISE_E_UV_RUN}} python .scripts/lint-clang.py
+      - echo "- ✅ clang lint check completed"
+    desc: 'Check C++ scripts using clang-tidy'
+    silent: true
+
+  lint:check:powershell:
+    aliases: [lint:check:pwsh]
+    cmds:
+      - |
+        {{.__TF_MISE_E}} pwsh -File .scripts/lint-powershell.ps1 {{if .STAGED}}-Staged{{end}}
+      - echo "- ✅ pwsh lint completed"
+    desc: 'Check PowerShell scripts using PSScriptAnalyzer'
+    silent: true
+
+  lint:check:shellcheck:
+    aliases: [lint:check:sh, lint:check:bash]
+    cmds:
+      - cmd: |
+          {{.__TF_MISE_E}} bash .scripts/lint-shellcheck.sh {{if .STAGED}}--staged{{end}}
+        platforms: [darwin, linux]
+      - cmd: |
+          {{.__TF_MISE_E}} pwsh -File .scripts/lint-shellcheck.ps1 {{if .STAGED}}-Staged{{end}}
+        platforms: [windows]
+      - echo "- ✅ bash lint completed"
+    desc: 'Check shell scripts using ShellCheck'
+    silent: true
+
+  duplicate-check:
+    desc: 'Check for duplicate code using jscpd'
+    cmds:
+      - |
+        {{.__TF_MISE_E}} npx jscpd src/ include/
+      - git add .jscpd/jscpd-badge.svg 2>/dev/null || true
 
   # # ============================================================================
   # # Test Tasks
@@ -398,9 +473,9 @@ tasks:
   #         fi
 
   #         # Generate HTML report
-  #         mkdir -p .coverage
+  #         mkdir -p coverage
   #         if ! genhtml bazel-out/_coverage/_coverage_report.dat \
-  #           --output-directory .coverage \
+  #           --output-directory coverage \
   #           --branch-coverage \
   #           --highlight \
   #           --legend \
@@ -413,7 +488,7 @@ tasks:
   #         fi
 
   #         echo ""
-  #         echo "✅ HTML coverage report: .coverage/index.html"
+  #         echo "✅ HTML coverage report: coverage/index.html"
   #         echo ""
   #         exit 0
   #         {{end}}
@@ -464,14 +539,14 @@ tasks:
   #           --txt
   #         echo ""
 
-  #         mkdir -p .coverage
+  #         mkdir -p coverage
   #         gcovr --root . \
   #           --filter 'src/.*' --filter 'include/.*' \
   #           --exclude 'tests/.*' --exclude 'build/_deps/.*' \
   #           --gcov-executable "$GCOV_EXEC" \
   #           --gcov-ignore-errors=no_working_dir_found \
-  #           --html-details .coverage/index.html 2>/dev/null
-  #         echo "✅ HTML coverage report: .coverage/index.html"
+  #           --html-details coverage/index.html 2>/dev/null
+  #         echo "✅ HTML coverage report: coverage/index.html"
   #         echo ""
   #         {{end}}
   #   silent: true
@@ -587,8 +662,8 @@ tasks:
   validate:by:build-system:compiler:
     cmds:
       - task: format
-      # - task: clean
-      # - task: build
+      - task: clean
+      - task: build
       # - task: lint
       # - task: run
       # - task: clean

@@ -1,22 +1,11 @@
 {
   "threshold": 1,
   "reporters": ["html", "console", "badge"],
-  "output": ".jscpd",
-  "ignore": [
-    ".xmake/**",
-    ".git/**",
-    ".venv/**",
-    "_install/**",
-    "build/**",
-    "compile_commands.json",
-    "docs/**",
-    "external/**",
-    "scripts/**",
-    "templates/**"
-  ],
+  "ignore": ["node_modules/**", "dist/**", "coverage/**", "**/*.min.js", "**/*.config.js", "**/*.config.mjs"],
   "absolute": true,
   "gitignore": true,
   "silent": false,
   "blame": true,
-  "cache": true
+  "cache": true,
+  "output": ".jscpd"
 }

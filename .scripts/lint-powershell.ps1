@@ -48,7 +48,14 @@ $IGNORED_FOLDERS = @(
   'vendor',
   'target',
   'dist',
-  'build'
+  'build',
+  'external',
+  '.cache',
+  '.task',
+  'bazel-bin',
+  'bazel-out',
+  'bazel-testlogs',
+  'bazel-cpp'
 )
 
 # ============================================================================

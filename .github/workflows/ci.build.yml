@@ -4,12 +4,12 @@ on:
   workflow_call:
     inputs:
       os:
-        description: "Operating system to run on"
+        description: 'Operating system to run on'
         required: false
         type: string
-        default: "ubuntu-latest"
+        default: 'ubuntu-latest'
       build_system:
-        description: "Build system to use"
+        description: 'Build system to use'
         required: false
         type: string
         default: '["bazel", "cmake", "xmake"]'
