@@ -1,10 +1,6 @@
 {
   "threshold": 1,
-  "reporters": [
-    "html",
-    "console",
-    "badge"
-  ],
+  "reporters": ["html", "console", "badge"],
   "output": ".jscpd",
   "ignore": [
     ".xmake/**",

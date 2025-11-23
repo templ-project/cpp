@@ -1,52 +1,16 @@
-# Mise
-*mise.local.toml
-
 # Code with AI
 .cwai
-specs
-.specs
+.github/prompts
 
-# Env
-.env*
-!.env.example
-
-# Bootstrap files
-_install/__pycache__/
+# Logs
+logs
+*.log
 
 # Build Systems
 BUILD.bazel
 tests/BUILD.bazel
 CMakeLists.txt
 xmake.lua
-
-# Python
-.venv
-*.egg-info/
-dist/
-*.egg
-
-# Node modules
-node_modules/
-package-lock.json
-package.json
-.jscpd/html/
-
-# Cache folders
-.cache/
-.task/
-
-# Build Folders
-/build
-/Release
-
-# Dependencies folder (Conan output)
-/lib
-
-# Generated Documentation
-/docs-html/
-/site/
-
-# Build Systems
 .xmake
 bazel-*
 BUILD.xmake
@@ -106,5 +70,52 @@ MODULE.bazel.lock
 *.dwo
 
 # Coverage files
-.coverage
+
+coverage
 *.gcov
+*.lcov
+
+# Node modules
+node_modules/
+
+# Cache folders
+.cache/
+.task/
+
+# Build Folders
+/build/
+/Release/
+
+# Dependencies folder (Conan output)
+/lib
+
+# Optional eslint cache
+.eslintcache
+
+# Archives
+*.tgz
+*.tar*
+*.zip
+
+# dotenv environment variable files
+.env
+.env.*
+!.env.example
+# Jscpd reports
+.jscpd/html/
+
+# PSScriptAnalyzer
+.github/scripts/
+
+# MkDocs
+docs-html/
+
+# Python
+.venv
+*.egg-info/
+dist/
+*.egg
+
+# mise local configs
+.mise.local.toml
+mise.local.toml

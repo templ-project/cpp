@@ -24,8 +24,8 @@
     - [1. Template-Driven Configuration](#1-template-driven-configuration)
     - [2. Mise Tool Management](#2-mise-tool-management)
     - [3. Hedron Compile Commands for Bazel](#3-hedron-compile-commands-for-bazel)
-    - [4. Pre-commit Hooks](#4-pre-commit-hooks)
-    - [5. GitHub Actions Integration](#5-github-actions-integration)
+
+    - [4. GitHub Actions Integration](#4-github-actions-integration)
   - [Requirements](#requirements)
     - [Auto-Installed by Mise](#auto-installed-by-mise)
     - [Manual Installation](#manual-installation)
@@ -105,7 +105,7 @@ mise run test --build-system xmake
 - ✅ **Clang/LLVM 20.1.8** - Latest compiler with libc++ on Linux/macOS
 - ✅ **Clang-format** - Auto-formatting (Google style, 80-column)
 - ✅ **Clang-tidy** - Comprehensive linting (bugprone, modernize, performance)
-- ✅ **Pre-commit Hooks** - Auto-fix formatting, linting, duplicates before commit
+
 - ✅ **JSCPD** - Duplicate code detection with badge generation
 
 ### Testing & Coverage
@@ -233,24 +233,7 @@ bazel run @hedron_compile_commands//:refresh_all
 
 This enables full clang-tidy support for Bazel builds!
 
-### 4. Pre-commit Hooks
-
-Automatically runs on every commit:
-
-- **Clang-format**: Auto-fixes formatting, stages changes
-- **Clang-tidy**: Auto-fixes linting issues, stages changes
-- **JSCPD**: Updates duplicate detection badge, stages it
-- **File validation**: YAML, JSON, TOML, trailing whitespace
-
-```bash
-# Install hooks
-pre-commit install
-
-# Or via mise/task
-mise run uv:sync  # Installs pre-commit and hooks
-```
-
-### 5. GitHub Actions Integration
+### 4. GitHub Actions Integration
 
 Custom composite action in `.github/actions/setup-tools/`:
 

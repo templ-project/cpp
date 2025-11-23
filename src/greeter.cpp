@@ -27,7 +27,7 @@ std::string_view Trim(std::string_view str) {
 }
 
 // Greeter class implementation
-std::string Greeter::Hello(const std::string &name) {
+std::string Greeter::Hello(const std::string& name) {
   const std::string trimmed_name{Trim(name)};
 
   if (trimmed_name.empty()) {
@@ -37,7 +37,7 @@ std::string Greeter::Hello(const std::string &name) {
   return "Hello, " + trimmed_name + "!";
 }
 
-std::string Greeter::Goodbye(const std::string &name) {
+std::string Greeter::Goodbye(const std::string& name) {
   const std::string trimmed_name{Trim(name)};
 
   if (trimmed_name.empty()) {
@@ -48,11 +48,11 @@ std::string Greeter::Goodbye(const std::string &name) {
 }
 
 // Convenience functions using default Greeter instance
-std::string Hello(const std::string &name) {
+std::string Hello(const std::string& name) {
   return cpp_template::Greeter::Hello(name);
 }
 
-std::string Goodbye(const std::string &name) {
+std::string Goodbye(const std::string& name) {
   return cpp_template::Greeter::Goodbye(name);
 }
 

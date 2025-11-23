@@ -29,20 +29,13 @@ Repository = "https://github.com/templ-project/cpp.git"
 Issues = "https://github.com/templ-project/cpp/issues"
 
 [project.scripts]
-bootstrap = "_install.bootstrap:main"
+bootstrap = "uvx_install.bootstrap:main"
 
 [project.optional-dependencies]
-dev = ["pre-commit>=3.5.0", "gcovr>=7.0", "ninja>=1.11.0", "jinja2>=3.1.0"]
-docs = [
-  "mkdocs>=1.5.0",
-  "mkdocs-material>=9.5.0",
-  "mkdocstrings[python]>=0.24.0",
-  "mkdoxy>=1.1.0",
-]
+docs = ["mkdocs>=1.5.0", "mkdocs-material>=9.5.0", "mkdocstrings[python]>=0.24.0", "mkdoxy>=1.1.0"]
 
-[tool.uv]
-dev-dependencies = [
-  "pre-commit>=3.5.0",
+[dependency-groups]
+dev = [
   "gcovr>=7.0",
   "ninja>=1.11.0",
   "jinja2>=3.1.0",
@@ -54,7 +47,7 @@ dev-dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["_install*"]
+include = ["uvx_install*"]
 
 [tool.setuptools.package-data]
-"_install" = ["bootstrap.py"]
+"uvx_install" = ["bootstrap.py"]

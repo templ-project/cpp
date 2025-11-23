@@ -21,7 +21,7 @@ namespace cpp_template {
  */
 class InvalidNameError : public std::invalid_argument {
  public:
-  explicit InvalidNameError(const std::string &message)
+  explicit InvalidNameError(const std::string& message)
       : std::invalid_argument(message) {}
 };
 
@@ -52,7 +52,7 @@ class Greeter {
    * // Returns: "Hello, World!"
    * @endcode
    */
-  static std::string Hello(const std::string &name);
+  static std::string Hello(const std::string& name);
 
   /**
    * @brief Creates a farewell message for the specified name
@@ -68,7 +68,7 @@ class Greeter {
    * // Returns: "Goodbye, World!"
    * @endcode
    */
-  static std::string Goodbye(const std::string &name);
+  static std::string Goodbye(const std::string& name);
 };
 
 /**
@@ -89,7 +89,7 @@ class Greeter {
  * // Returns: "Hello, C++!"
  * @endcode
  */
-std::string Hello(const std::string &name);
+std::string Hello(const std::string& name);
 
 /**
  * @brief Convenience function that creates a farewell message
@@ -106,7 +106,7 @@ std::string Hello(const std::string &name);
  * // Returns: "Goodbye, World!"
  * @endcode
  */
-std::string Goodbye(const std::string &name);
+std::string Goodbye(const std::string& name);
 
 /**
  * @brief Utility function to trim whitespace from string

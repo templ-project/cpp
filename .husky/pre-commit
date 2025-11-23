@@ -1,0 +1,3 @@
+task lint:staged lint:shellcheck lint:powershell duplicate-check STAGED=1
+
+git add .
