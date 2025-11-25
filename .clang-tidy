@@ -15,7 +15,8 @@ Checks: |
   -readability-named-parameter,
   -clang-diagnostic-c++98-compat,
   -clang-diagnostic-c++98-compat-pedantic,
-  -clang-diagnostic-unused-macros
+  -clang-diagnostic-unused-macros,
+  -clang-diagnostic-unused-command-line-argument
 WarningsAsErrors: ''
 HeaderFilterRegex: '(include|src|tests)/.*'
 FormatStyle: google

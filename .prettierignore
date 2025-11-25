@@ -1,0 +1,19 @@
+# Ignore files that don't need formatting
+.editorconfig
+.eslintignore
+.github/
+.gitignore
+.husky/
+.jscpd/
+.mise.lock
+.prettierignore
+.venv/
+*.lock
+*.log
+*.ps1
+*.sh
+coverage/
+dist/
+docs-html/
+LICENSE
+package-lock.json

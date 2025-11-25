@@ -39,7 +39,7 @@ plugins:
           src-dirs: include src
           full-doc: true
           doxy-cfg:
-            FILE_PATTERNS: "*.cpp *.hpp *.h"
+            FILE_PATTERNS: '*.cpp *.hpp *.h'
             RECURSIVE: true
             EXTRACT_ALL: true
             EXTRACT_PRIVATE: true
@@ -71,16 +71,16 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started:
-    - Installation: getting-started/installation.md
-    - Quick Start: getting-started/quickstart.md
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
   - API Reference:
-    - Overview: api/index.md
-    - Classes: api/classes.md
-    - Functions: api/functions.md
+      - Overview: api/index.md
+      - Classes: api/classes.md
+      - Functions: api/functions.md
   - Development:
-    - Contributing: development/contributing.md
-    - Testing: development/testing.md
-    - Coverage: development/coverage.md
+      - Contributing: development/contributing.md
+      - Testing: development/testing.md
+      - Coverage: development/coverage.md
   - About:
-    - License: about/license.md
-    - Changelog: about/changelog.md
+      - License: about/license.md
+      - Changelog: about/changelog.md

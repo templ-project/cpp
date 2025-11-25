@@ -1,0 +1,63 @@
+[[tools."github:Kitware/CMake"]]
+version = "4.2.0"
+backend = "github:Kitware/CMake"
+
+[tools."github:Kitware/CMake".platforms.windows-x64]
+checksum = "sha256:cf35a516c4f5f4646b301e51c8e24b168cc012c3b1453b8f675303b54eb0ef45"
+name = "cmake-4.2.0-windows-x86_64.zip"
+size = 50377806
+url = "https://github.com/Kitware/CMake/releases/download/v4.2.0/cmake-4.2.0-windows-x86_64.zip"
+url_api = "https://api.github.com/repos/Kitware/CMake/releases/assets/318438564"
+
+[[tools."github:PowerShell/PowerShell"]]
+version = "7.5.4"
+backend = 'github:PowerShell/PowerShell[platforms={ linux-x64 = { asset_pattern = "powershell-*-linux-x64.tar.gz" }, macos-arm64 = { asset_pattern = "powershell-*-osx-arm64.tar.gz" }, windows-x64 = { asset_pattern = "PowerShell-*-win-x64.zip" } }]'
+
+[[tools."github:bazelbuild/bazel"]]
+version = "8.4.2"
+backend = 'github:bazelbuild/bazel[bin=bazel,platforms={ linux-x64 = { asset_pattern = "bazel-*-linux-88_x64" }, macos-arm64 = { asset_pattern = "bazel-*-darwin-arm64" }, windows-x64 = { asset_pattern = "bazel-*-windows-x86_64.exe", bin = "bazel.exe" } }]'
+
+[[tools."github:doxygen/doxygen"]]
+version = "Release_1_15_0"
+backend = 'github:doxygen/doxygen[platforms={ linux-x64 = { asset_pattern = "doxygen-*.linux.bin.tar.gz" }, macos-arm64 = { asset_pattern = "Doxygen-*.dmg" }, windows-x64 = { asset_pattern = "doxygen-*-setup.exe" } }]'
+
+[tools."github:doxygen/doxygen".platforms.windows-x64]
+checksum = "sha256:9cffa650bbc7f728271972fb5a18a38fa79a5def225a8c0e4156d0b0d3b1d7b5"
+name = "doxygen-1.15.0-setup.exe"
+size = 60769040
+url = "https://github.com/doxygen/doxygen/releases/download/Release_1_15_0/doxygen-1.15.0-setup.exe"
+url_api = "https://api.github.com/repos/doxygen/doxygen/releases/assets/307295461"
+
+[[tools."github:koalaman/shellcheck"]]
+version = "0.11.0"
+backend = 'github:koalaman/shellcheck[platforms={ linux-x64 = { asset_pattern = "shellcheck-*.linux.armv6hf.tar.xz" }, macos-arm64 = { asset_pattern = "shellcheck-*.linux.x86_64.tar.xz" }, windows-x64 = { asset_pattern = "shellcheck-*.zip" } }]'
+
+[[tools."github:xmake-io/xmake"]]
+version = "3.0.3"
+backend = "github:xmake-io/xmake"
+
+[[tools."http:llvm/llvm-project"]]
+version = "20.1.8"
+backend = 'http:llvm/llvm-project[platforms={ linux-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/LLVM-{version}-Linux-X64.tar.xz" }, macos-arm64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/LLVM-{version}-macOS-ARM64.tar.xz" }, windows-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/clang+llvm-{version}-x86_64-pc-windows-msvc.tar.xz" } }]'
+
+[[tools.node]]
+version = "25.2.1"
+backend = "core:node"
+
+[tools.node.platforms.windows-x64]
+checksum = "sha256:f97ba75ead7720652f3925d9cf8661e083a28c6b98ea77acc83903d77a9dd688"
+size = 36700021
+url = "https://nodejs.org/dist/v25.2.1/node-v25.2.1-win-x64.zip"
+
+[[tools.python]]
+version = "3.11.14"
+backend = "core:python"
+
+[[tools.uv]]
+version = "0.9.11"
+backend = "aqua:astral-sh/uv"
+
+[tools.uv.platforms.windows-x64]
+checksum = "sha256:45a3ff2a68c246ed9fd2d9df032496c1beebe480357f356ac25d2cb144884c30"
+size = 20972744
+url = "https://github.com/astral-sh/uv/releases/download/0.9.11/uv-x86_64-pc-windows-msvc.zip"

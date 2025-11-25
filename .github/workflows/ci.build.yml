@@ -4,12 +4,12 @@ on:
   workflow_call:
     inputs:
       os:
-        description: "Operating system to run on"
+        description: 'Operating system to run on'
         required: false
         type: string
-        default: "ubuntu-latest"
+        default: 'ubuntu-latest'
       build_system:
-        description: "Build system to use"
+        description: 'Build system to use'
         required: false
         type: string
         default: '["bazel", "cmake", "xmake"]'
@@ -19,7 +19,7 @@ jobs:
   setup:
     runs-on: ${{ inputs.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-tools
 
   build:
@@ -28,15 +28,12 @@ jobs:
     strategy:
       matrix:
         build_system: ${{ fromJSON(inputs.build_system) }}
-        task_manager:
-          # - mise
-          - task
         compiler:
           - clang++
           - g++
           - msvc
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-tools
 
       - name: Build
@@ -48,12 +45,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONIOENCODING: utf-8
         run: |
-          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
-            mise exec -- task clean build CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
-          else
-            mise run clean && \
-              mise run build --build-system ${{ matrix.build_system }} --compiler ${{ matrix.compiler }}
-          fi
+          task build CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
         shell: bash
 
   lint:
@@ -62,27 +54,20 @@ jobs:
     strategy:
       matrix:
         build_system: ${{ fromJSON(inputs.build_system) }}
-        task_manager:
-          # - mise
-          - task
         compiler:
           - clang++
           # - g++
           # - msvc
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-tools
 
-      - name: Test Code Formatting
+      - name: Check Code Formatting
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONIOENCODING: utf-8
         run: |
-          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
-            mise exec -- task format:check
-          else
-            mise run format
-          fi
+          task format:check
         shell: bash
 
       - name: Lint Code
@@ -90,12 +75,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONIOENCODING: utf-8
         run: |
-          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
-            mise exec -- task clean lint:check CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
-          else
-            mise run clean && \
-              mise run lint --build-system ${{ matrix.build_system }} --compiler ${{ matrix.compiler }}
-          fi
+          task clean lint:check CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
         shell: bash
 
   test:
@@ -104,18 +84,15 @@ jobs:
     strategy:
       matrix:
         build_system: ${{ fromJSON(inputs.build_system) }}
-        task_manager:
-          # - mise
-          - task
         compiler:
           - clang++
           - g++
           - msvc
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-tools
 
-      - name: Test
+      - name: Run Tests
         # Skip MSVC on non-Windows and g++ on Windows
         if: |
           (runner.os == 'Windows' && matrix.compiler != 'g++') ||
@@ -124,26 +101,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONIOENCODING: utf-8
         run: |
-          if [[ "${{ matrix.task_manager }}" == "task" ]]; then
-            mise exec -- task clean test CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
-          else
-            mise run clean && \
-              mise run test --build-system ${{ matrix.build_system }} --compiler ${{ matrix.compiler }}
-          fi
+          task test CPP_BUILD_SYSTEM=${{ matrix.build_system }} CPP_COMPILER=${{ matrix.compiler }}
         shell: bash
 
   duplicate-check:
-    if: ${{ inputs.os == 'macos-latest' }}
+    if: ${{ inputs.os == 'ubuntu-latest' }}
     runs-on: ${{ inputs.os }}
+    needs: [setup]
     steps:
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
-      - uses: go-task/setup-task@v1
-
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      # duplicate check only requires node setup
+      - uses: actions/setup-node@v3
 
       - name: Run duplicate check
-        run: task duplicate-check
+        run: |
+          npm install && npm run duplicate-check

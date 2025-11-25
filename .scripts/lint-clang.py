@@ -82,8 +82,9 @@ def lint_single_file(file: Path, fix: bool, build_dir: str = 'build') -> Tuple[b
     try:
         args = ['clang-tidy', '-p', build_dir, '--config-file=.clang-tidy', '--quiet']
 
-        # On Windows with Bazel, suppress MSVC compatibility warnings from compile_commands.json
-        if sys.platform == 'win32' and Path(build_dir).name != 'build':
+        # On Windows, suppress MSVC compatibility warnings that appear in compile_commands.json
+        # These are common when Hedron generates commands from MSVC toolchain analysis
+        if sys.platform == 'win32':
             args.extend([
                 '--checks=-clang-diagnostic-builtin-macro-redefined,-clang-diagnostic-unused-command-line-argument'
             ])
