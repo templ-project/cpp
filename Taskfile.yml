@@ -3,18 +3,18 @@ version: '3'
 vars:
   # mise dependent
   __TF_MISE_E: 'mise trust; mise exec --'
-  __TF_MISE_E_PWSH: 'mise trust; mise exec -- pwsh -ExecutionPolicy Bypass -Command'
-  __TF_MISE_E_PWSH_FILE: 'mise trust; mise exec -- pwsh -ExecutionPolicy Bypass -File'
+  __TF_MISE_E_PWSH: 'mise trust; mise exec -- pwsh -NoProfile -ExecutionPolicy Bypass -Command'
+  __TF_MISE_E_PWSH_FILE: 'mise trust; mise exec -- pwsh -NoProfile -ExecutionPolicy Bypass -File'
   __TF_MISE_E_UV_RUN: 'mise trust; mise exec -- uv run'
   # os dependent
   __TF_COMMAND_WRAPPER:
     sh: |
       echo '{{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command{{else}}bash -c{{end}}'
+  __TF_HEADER_LINE: '=============================================================='
+  __TF_SEP: ' '
   __TF_VAR_PREFIX:
     sh: |
       echo "{{if eq OS "windows"}}\${{else}}{{end}}"
-  __TF_HEADER_LINE: '=============================================================='
-  __TF_SEP: ' '
 
   # cpp project defaults
   __TF_VALIDATION_CPP_BUILD_SYSTEMS:
@@ -24,10 +24,16 @@ vars:
     sh: |
       echo "clang++ {{if eq OS "windows"}}msvc{{else}}g++{{end}}"
   CPP_PROJECT_NAME: '{{default .CPP_PROJECT_NAME "cpp-template"}}'
-  CPP_BUILD_SYSTEM: '{{default .CPP_BUILD_SYSTEM "cmake"}}' # bazel, cmake, xmake
+  CPP_BUILD_SYSTEM: '{{default .CPP_BUILD_SYSTEM "cmake"}}'
   CPP_BUILD_DIR: '{{default .CPP_BUILD_DIR "build"}}'
   CPP_BUILD_TYPE: '{{default .CPP_BUILD_TYPE "Release"}}'
-  CPP_COMPILER: '{{default .CPP_COMPILER "clang++"}}' # clang++, g++, msvc (windows)
+  CPP_COMPILER: '{{default .CPP_COMPILER "clang++"}}'
+
+  # Build targets - loaded from .build-targets.yml
+  CPP_BUILD_TARGETS_RAW:
+    sh: cat .build-targets.yml
+  CPP_BUILD_TARGETS:
+    ref: '(fromYaml .CPP_BUILD_TARGETS_RAW).targets'
 
 env:
   BAZEL_VC:
@@ -48,7 +54,7 @@ env:
 
 tasks:
   # ==========================================================================
-  # Build Tasks
+  # Generic Tasks
   # ==========================================================================
 
   print:env:
@@ -63,9 +69,21 @@ tasks:
               }}else { Get-ChildItem "Env:" | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Value)" } }'
         platforms: [windows]
     desc: 'Print current build environment variables'
+    summary: |
+      Print current build environment variables
+
+      Displays all environment variables available during the build process,
+      sorted alphabetically. Useful for debugging build issues and verifying
+      tool configurations.
+
+      Examples:
+        task print:env
+
+  # ==========================================================================
+  # Build Tasks
+  # ==========================================================================
 
   build:
-    desc: 'Build project (system: {{.CPP_BUILD_SYSTEM}}, type: {{.CPP_BUILD_TYPE}})'
     cmds:
       - cmd: |
           echo "{{.__TF_HEADER_LINE}}"
@@ -78,114 +96,340 @@ tasks:
       - task: print:env
       - task: 'build:{{.CPP_BUILD_SYSTEM}}'
         vars:
-          CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
           CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+          CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
           CPP_COMPILER: '{{.CPP_COMPILER}}'
           CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+    desc: 'Build project (system: {{.CPP_BUILD_SYSTEM}}, type: {{.CPP_BUILD_TYPE}})'
     sources:
+      - include/**/*.h
+      - include/**/*.hpp
       - src/**/*.cpp
       - src/**/*.hpp
-      - include/**/*.hpp
-      - include/**/*.h
       - tests/**/*.cpp
+    summary: |
+      Build the C++ project for the current platform
+
+      Compiles the application using the configured build system and compiler.
+      Automatically selects the appropriate build configuration based on
+      environment variables.
+
+      Variables:
+        CPP_BUILD_SYSTEM: Build system to use (default: cmake)
+                          Options: bazel, cmake, xmake
+        CPP_BUILD_TYPE:   Build type (default: Release)
+                          Options: Debug, Release
+        CPP_COMPILER:     Compiler to use (default: clang++)
+                          Options: clang++, g++, msvc (Windows only)
+        CPP_BUILD_DIR:    Output directory for build artifacts (default: build)
+
+      Examples:
+        task build                              # Build with defaults
+        task build CPP_BUILD_TYPE=Debug         # Build debug version
+        task build CPP_BUILD_SYSTEM=bazel       # Build using Bazel
+        task build CPP_COMPILER=g++             # Build with GCC
+
+  build:all:
+    cmds:
+      - for:
+          var: CPP_BUILD_TARGETS
+        task: build:target
+        vars:
+          TARGET_ARCH: '{{.ITEM.arch}}'
+          TARGET_OS: '{{.ITEM.os}}'
+    desc: 'Build all architecture targets for current OS'
+    summary: |
+      Build all architecture targets for the current OS
+
+      Iterates through targets defined in .build-targets.yml and builds
+      all architectures that match the current operating system.
+      Non-matching OS targets are automatically skipped.
+
+      Output binaries are placed in build/<project>_<os>_<arch>[.exe].
+
+      Examples:
+        task build:all                         # Build all archs for current OS
+        task build:all CPP_BUILD_TYPE=Debug    # Build all archs in debug mode
+
+  build:target:
+    cmds:
+      - cmd: |
+          # On macOS with xmake/bazel, skip if target arch doesn't match host arch
+          # (cross-compile not supported with mise LLVM for these build systems)
+          # CMake handles cross-compilation via CMAKE_OSX_ARCHITECTURES
+          {{if and (eq OS "darwin") (eq .TARGET_OS "darwin") (ne .CPP_BUILD_SYSTEM "cmake")}}
+          if [ "{{.NORMALIZED_HOST_ARCH}}" != "{{.TARGET_ARCH}}" ]; then
+            echo "⏭️  Skipping {{.TARGET_OS}}/{{.TARGET_ARCH}} with {{.CPP_BUILD_SYSTEM}} (host is {{.NORMALIZED_HOST_ARCH}}, cross-compile not supported)"
+            exit 0
+          fi
+          {{end}}
+          echo "{{.__TF_HEADER_LINE}}"
+          echo "Building {{.CPP_PROJECT_NAME}} for {{.TARGET_OS}}/{{.TARGET_ARCH}} in {{.CPP_BUILD_TYPE}} mode"
+          echo "{{.__TF_HEADER_LINE}}"
+      - task: 'build:target:impl'
+        vars:
+          ARCH_BUILD_DIR: '{{.ARCH_BUILD_DIR}}'
+          CPP_BUILD_DIR: '{{.ARCH_BUILD_DIR}}'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+          CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
+          CPP_COMPILER: '{{.CPP_COMPILER}}'
+          CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+          EXE_EXT: '{{.EXE_EXT}}'
+          NORMALIZED_HOST_ARCH: '{{.NORMALIZED_HOST_ARCH}}'
+          OUTPUT_NAME: '{{.OUTPUT_NAME}}'
+          TARGET_ARCH: '{{.TARGET_ARCH}}'
+          TARGET_OS: '{{.TARGET_OS}}'
+    desc: 'Build for a specific OS/ARCH target'
+    requires:
+      vars: [TARGET_ARCH, TARGET_OS]
+    status:
+      # Skip if TARGET_OS doesn't match current OS
+      - '[ "{{.TARGET_OS}}" != "{{OS}}" ]'
+    summary: |
+      Build for a specific OS/ARCH target
+
+      Compiles the application for the specified operating system and
+      architecture combination. Automatically skips if TARGET_OS doesn't
+      match the current OS.
+
+      On macOS, cross-architecture builds with xmake and bazel are not supported
+      with mise-managed LLVM. CMake can cross-compile using CMAKE_OSX_ARCHITECTURES.
+      The task will skip with a warning for unsupported build system/arch combinations.
+
+      Required Variables:
+        TARGET_OS:   Target operating system (linux, darwin, windows)
+        TARGET_ARCH: Target architecture (x86_64, aarch64, i686)
+
+      Note: This task is typically called by build:all, not directly.
+    vars:
+      ARCH_BUILD_DIR: 'build-{{.TARGET_ARCH}}'
+      EXE_EXT: '{{if eq .TARGET_OS "windows"}}.exe{{end}}'
+      # Normalize host arch: Taskfile uses arm64/amd64, our targets use aarch64/x86_64
+      NORMALIZED_HOST_ARCH: '{{if eq ARCH "arm64"}}aarch64{{else if eq ARCH "amd64"}}x86_64{{else}}{{ARCH}}{{end}}'
+      OUTPUT_NAME: '{{.CPP_PROJECT_NAME}}_{{.TARGET_OS}}_{{.TARGET_ARCH}}{{.EXE_EXT}}'
+
+  build:target:impl:
+    cmds:
+      - task: 'build:target:clean'
+        vars:
+          ARCH_BUILD_DIR: '{{.ARCH_BUILD_DIR}}'
+      - task: 'build:{{.CPP_BUILD_SYSTEM}}'
+        vars:
+          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+          CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
+          CPP_COMPILER: '{{.CPP_COMPILER}}'
+          CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+          TARGET_ARCH: '{{.TARGET_ARCH}}'
+      - cmd: |
+          mkdir -p build
+          # Find and copy the binary to build/ with proper naming
+          {{if eq .CPP_BUILD_SYSTEM "bazel"}}
+          cp bazel-bin/{{.CPP_PROJECT_NAME}}{{.EXE_EXT}} build/{{.OUTPUT_NAME}} 2>/dev/null || true
+          {{else}}
+          find {{.ARCH_BUILD_DIR}} -name "{{.CPP_PROJECT_NAME}}{{.EXE_EXT}}" -type f | head -n 1 | xargs -I{} cp {} build/{{.OUTPUT_NAME}} 2>/dev/null || true
+          {{end}}
+          echo "Built: build/{{.OUTPUT_NAME}}"
+    internal: true
+    requires:
+      vars:
+        [
+          ARCH_BUILD_DIR,
+          CPP_BUILD_DIR,
+          CPP_BUILD_SYSTEM,
+          CPP_BUILD_TYPE,
+          CPP_COMPILER,
+          CPP_PROJECT_NAME,
+          EXE_EXT,
+          NORMALIZED_HOST_ARCH,
+          OUTPUT_NAME,
+          TARGET_ARCH,
+          TARGET_OS,
+        ]
+    status:
+      # On macOS with xmake/bazel, skip if target arch doesn't match host arch
+      - '{{if and (eq OS "darwin") (eq .TARGET_OS "darwin") (ne .CPP_BUILD_SYSTEM "cmake")}}[ "{{.NORMALIZED_HOST_ARCH}}" != "{{.TARGET_ARCH}}" ]{{else}}false{{end}}'
+
+  build:target:clean:
+    cmds:
+      - cmd: |
+          # Clean build system caches/configs that may have wrong architecture
+          rm -rf .xmake {{.ARCH_BUILD_DIR}}
+          {{.__TF_MISE_E}} bazel clean 2>/dev/null || true
+    desc: 'Clean build artifacts for a specific architecture target'
+    internal: true
+    requires:
+      vars: [ARCH_BUILD_DIR]
+
+  build:dist:
+    cmds:
+      - cmd: .scripts/build-dist.sh "{{.CPP_PROJECT_NAME}}"
+        platforms: [darwin, linux]
+      - cmd: '{{.__TF_MISE_E_PWSH_FILE}} .scripts/build-dist.ps1 -ProjectName "{{.CPP_PROJECT_NAME}}"'
+        platforms: [windows]
+    deps:
+      - build:all
+    desc: 'Create distribution archives for all builds in build/'
+    sources:
+      - build/*
+    summary: |
+      Create distribution archives for all builds
+
+      Creates compressed archives for all binaries in the build/ directory.
+      Unix binaries are packaged as .tar.gz, Windows binaries as .zip.
+      Output archives are placed in dist/.
+
+      Examples:
+        task build:dist                      # Build all and create archives
 
   build:bazel:
     cmds:
       - |
-        {{.__TF_MISE_E_UV_RUN}} python .scripts/compile_templates.py --build-system bazel --compiler {{.CPP_COMPILER}}
+        {{.__TF_MISE_E_UV_RUN}} python .scripts/compile_templates.py --build-system bazel --compiler {{.CPP_COMPILER}}{{if .TARGET_ARCH}} --arch {{.TARGET_ARCH}}{{end}}
       - |
         BAZEL_CONFIG="{{if eq .CPP_BUILD_TYPE "Debug"}}--compilation_mode=dbg{{else}}--compilation_mode=opt{{end}}"
         {{.__TF_MISE_E}} bazel build //:{{.CPP_PROJECT_NAME}} $BAZEL_CONFIG
 
         # Generate compile_commands.json for clang-tidy using Hedron
-        {{if ne .CPP_COMPILER "msvc"}}
+        # Skip on macOS: mise LLVM has broken macOS SDK header integration (mbstate_t errors)
+        # Skip with MSVC: Hedron doesn't support MSVC
+        {{if and (ne OS "darwin") (ne .CPP_COMPILER "msvc")}}
         {{.__TF_MISE_E}} bazel run @hedron_compile_commands//:refresh_all
         {{end}}
-    desc: 'Build project using Bazel'
     deps:
       - deps:sync:uv
+    desc: 'Build project using Bazel'
     env:
-      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
       CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
       CPP_COMPILER: '{{.CPP_COMPILER}}'
       CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
     generates:
       - bazel-bin/{{.CPP_PROJECT_NAME}}
     sources:
-      - BUILD.bazel
-      - tests/BUILD.bazel
       - .bazelrc
+      - BUILD.bazel
       - MODULE.bazel
       - WORKSPACE
+      - tests/BUILD.bazel
+    summary: |
+      Build project using Bazel build system
+
+      Compiles the C++ project using Bazel with the configured compiler.
+      Generates compile_commands.json for IDE integration using Hedron.
+
+      Variables:
+        CPP_BUILD_TYPE: Debug or Release (default: Release)
+        CPP_COMPILER:   Compiler to use (default: clang++)
+
+      Examples:
+        task build:bazel                        # Build with Bazel
+        task build:bazel CPP_BUILD_TYPE=Debug   # Debug build with Bazel
 
   build:cmake:
-    desc: 'Build project using CMake'
-    sources:
-      - CMakeLists.txt
-      - tests/CMakeLists.txt
-    generates:
-      - '{{.CPP_BUILD_DIR}}/CMakeCache.txt'
-      - '{{.CPP_BUILD_DIR}}/compile_commands.json'
-    env:
-      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
-      CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-      CPP_COMPILER: '{{.CPP_COMPILER}}'
-      CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
-    vars:
-      CMAKE_GENERATOR: '{{if eq OS "windows"}}{{if eq .CPP_COMPILER "msvc"}}{{.CMAKE_VS_GENERATOR}}{{else}}Ninja{{end}}{{else}}Unix Makefiles{{end}}'
-      CMAKE_COMPILER_FLAG: '{{if eq .CPP_COMPILER "msvc"}}{{else}}-DCMAKE_CXX_COMPILER={{.CPP_COMPILER}}{{end}}'
     cmds:
       - |
-        {{.__TF_MISE_E_UV_RUN}} python .scripts/compile_templates.py --build-system cmake --compiler {{.CPP_COMPILER}}
+        {{.__TF_MISE_E_UV_RUN}} python .scripts/compile_templates.py --build-system cmake --compiler {{.CPP_COMPILER}}{{if .TARGET_ARCH}} --arch {{.TARGET_ARCH}}{{end}}
       - |
         {{.__TF_MISE_E_UV_RUN}} cmake -B "{{.CPP_BUILD_DIR}}" -G "{{.CMAKE_GENERATOR}}" \
             -DCMAKE_BUILD_TYPE="{{.CPP_BUILD_TYPE}}" \
             {{.CMAKE_COMPILER_FLAG}} \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         {{.__TF_MISE_E_UV_RUN}} cmake --build "{{.CPP_BUILD_DIR}}" --parallel
-
-  build:xmake:
-    desc: 'Build project using XMake'
-    sources:
-      - xmake.lua
-    generates:
-      - .xmake/cache/config
-      - '{{.CPP_BUILD_DIR}}/compile_commands.json'
+    desc: 'Build project using CMake'
     env:
-      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
       CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
       CPP_COMPILER: '{{.CPP_COMPILER}}'
       CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
-      '{{if and (eq OS "windows") (eq .CPP_COMPILER "clang++")}}CXXFLAGS': '-Wno-error -Wno-unknown-warning-option'
+    generates:
+      - '{{.CPP_BUILD_DIR}}/CMakeCache.txt'
+      - '{{.CPP_BUILD_DIR}}/compile_commands.json'
+    sources:
+      - CMakeLists.txt
+      - tests/CMakeLists.txt
+    summary: |
+      Build project using CMake build system
+
+      Configures and builds the C++ project using CMake. Automatically
+      selects the appropriate generator based on OS and compiler.
+      Generates compile_commands.json for IDE integration.
+
+      Variables:
+        CPP_BUILD_TYPE: Debug or Release (default: Release)
+        CPP_COMPILER:   Compiler to use (default: clang++)
+        CPP_BUILD_DIR:  Output directory (default: build)
+
+      Examples:
+        task build:cmake                        # Build with CMake
+        task build:cmake CPP_BUILD_TYPE=Debug   # Debug build with CMake
     vars:
-      XMAKE_MODE: '{{if eq .CPP_BUILD_TYPE "Debug"}}debug{{else}}release{{end}}'
+      CMAKE_COMPILER_FLAG: '{{if eq .CPP_COMPILER "msvc"}}{{else}}-DCMAKE_CXX_COMPILER={{.CPP_COMPILER}}{{end}}'
+      CMAKE_GENERATOR: '{{if eq OS "windows"}}{{if eq .CPP_COMPILER "msvc"}}{{.CMAKE_VS_GENERATOR}}{{else}}Ninja{{end}}{{else}}Unix Makefiles{{end}}'
+
+  build:xmake:
     cmds:
       - |
-        {{.__TF_MISE_E_UV_RUN}} python .scripts/compile_templates.py --build-system xmake --compiler {{.CPP_COMPILER}}
+        {{.__TF_MISE_E_UV_RUN}} python .scripts/compile_templates.py --build-system xmake --compiler {{.CPP_COMPILER}}{{if .TARGET_ARCH}} --arch {{.TARGET_ARCH}}{{end}}
       - |
-        {{.__TF_MISE_E}} xmake f -m {{.XMAKE_MODE}} -y
+        {{.__TF_MISE_E}} xmake f -m {{.XMAKE_MODE}}{{if .XMAKE_ARCH}} -a {{.XMAKE_ARCH}}{{end}} -y
         {{.__TF_MISE_E}} xmake build -y
         {{.__TF_MISE_E}} xmake project -k compile_commands "{{.CPP_BUILD_DIR}}"
+    desc: 'Build project using XMake'
+    env:
+      '{{if and (eq OS "windows") (eq .CPP_COMPILER "clang++")}}CXXFLAGS': '-Wno-error -Wno-unknown-warning-option'
+      CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
+      CPP_COMPILER: '{{.CPP_COMPILER}}'
+      CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+    generates:
+      - '{{.CPP_BUILD_DIR}}/compile_commands.json'
+      - .xmake/cache/config
+    sources:
+      - xmake.lua
+    summary: |
+      Build project using XMake build system
+
+      Configures and builds the C++ project using XMake. Generates
+      compile_commands.json for IDE integration.
+
+      Variables:
+        CPP_BUILD_TYPE: Debug or Release (default: Release)
+        CPP_COMPILER:   Compiler to use (default: clang++)
+        CPP_BUILD_DIR:  Output directory (default: build)
+
+      Examples:
+        task build:xmake                        # Build with XMake
+        task build:xmake CPP_BUILD_TYPE=Debug   # Debug build with XMake
+    vars:
+      XMAKE_ARCH: '{{if eq .TARGET_ARCH "aarch64"}}arm64{{else if eq .TARGET_ARCH "x86_64"}}x86_64{{else if eq .TARGET_ARCH "i686"}}i386{{end}}'
+      XMAKE_MODE: '{{if eq .CPP_BUILD_TYPE "Debug"}}debug{{else}}release{{end}}'
 
   # ============================================================================
   # Clean Tasks
   # ============================================================================
 
   clean:
-    desc: 'Clean all build artifacts'
     cmds:
       - cmd: |
+          # Clean Bazel cache if bazel is available
+          if command -v bazel &> /dev/null || [ -f .mise.toml ]; then
+            {{.__TF_MISE_E}} bazel clean 2>/dev/null || true
+          fi
+
           rm -rf \
               .bazelrc \
               .cache \
+              .coverage \
               .jscpd/html \
               .task \
               .xmake \
               {{.CPP_BUILD_DIR}} \
+              build-* \
               BUILD.bazel \
               CMakeLists.txt \
               compile_commands.json \
               coverage \
+              dist \
               docs-html \
               MODULE.bazel \
               src/CMakeLists.txt \
@@ -198,194 +442,550 @@ tasks:
           rm -rf ~/AppData/Local/Temp/.xmake*
           rm -rf ~/AppData/Local/Temp/*.il
         platforms: [windows]
+    desc: 'Clean all build artifacts'
+    summary: |
+      Clean all build artifacts
+
+      Removes all generated files and directories including:
+        - build/        - Compiled binaries
+        - build-*/      - Architecture-specific build directories
+        - dist/         - Distribution archives
+        - .task/        - Task cache
+        - coverage/     - Test coverage reports
+        - .jscpd/html   - Duplicate check reports
+        - Generated build files (CMakeLists.txt, BUILD.bazel, etc.)
+        - Bazel cache (via bazel clean)
+
+      Examples:
+        task clean                           # Remove all artifacts
 
   # ============================================================================
   # Code Quality Tasks
   # ============================================================================
 
   format:
-    desc: 'Format code and fix issues'
     cmds:
-      - task: format:prettier
       - task: format:clang
+      - task: format:prettier
+      - task: format:ruff
       - cmd: echo "✅ Code format completed"
+    desc: 'Format code and fix issues'
+    summary: |
+      Format all code in the project
+
+      Runs all formatters in sequence:
+        1. clang-format for C++ files
+        2. Prettier for JSON, YAML, Markdown files
+        3. Ruff for Python files
+
+      Examples:
+        task format                          # Format all code
 
   format:clang:
     cmds:
       - |
-        {{.__TF_MISE_E}} python .scripts/format-clang.py --fix
-    desc: 'Format code using clang-format'
+        {{.__TF_MISE_E}} python .scripts/format_clang.py --fix
+    desc: 'Format C++ code using clang-format'
     silent: true
+    summary: |
+      Format C++ code using clang-format
+
+      Formats all C++ source files (.cpp, .hpp, .h) using clang-format
+      with the project's .clang-format configuration.
+
+      Examples:
+        task format:clang                    # Format C++ files
 
   format:prettier:
     cmds:
-      - |
-        {{.__TF_MISE_E}} npx prettier --write "./**/*.{json,toml,yaml,yml}"
+      - task: prettier
+        vars:
+          CLI_ARGS: '--write .'
     desc: 'Format code using Prettier'
     silent: true
+    summary: |
+      Format configuration files using Prettier
+
+      Formats JSON, YAML, Markdown, and other supported files
+      using Prettier with the project's configuration.
+
+      Examples:
+        task format:prettier                 # Format config files
+
+  prettier:
+    cmds:
+      - |
+        {{.__TF_MISE_E}} npx prettier {{.CLI_ARGS}}
+      - echo "- ✅ prettier format completed"
+    silent: true
+    sources:
+      - '**/*.{json,md,toml,yaml,yml}'
+    summary: |
+      Run Prettier with custom arguments
+
+      Internal task for running Prettier. Use format:prettier or
+      format:check:prettier instead.
+
+      Variables:
+        CLI_ARGS: Arguments to pass to Prettier
+
+  format:ruff:
+    aliases: [format:py, format:python]
+    cmds:
+      - task: ruff
+        vars:
+          CLI_ARGS: 'format .'
+      - echo "- ✅ ruff format completed"
+    desc: 'Format Python code using Ruff'
+    silent: true
+    summary: |
+      Format Python code using Ruff
+
+      Formats all Python files using Ruff formatter with the
+      project's pyproject.toml configuration.
+
+      Examples:
+        task format:ruff                     # Format Python files
+        task format:py                       # Alias
+        task format:python                   # Alias
+
+  ruff:
+    cmds:
+      - |
+        {{.__TF_MISE_E_UV_RUN}} ruff {{.CLI_ARGS}}
+    desc: 'Run Ruff'
+    silent: true
+    sources:
+      - '**/*.py'
+    summary: |
+      Run Ruff with custom arguments
+
+      Internal task for running Ruff. Use format:ruff or
+      lint:ruff instead.
+
+      Variables:
+        CLI_ARGS: Arguments to pass to Ruff
 
   format:check:
     cmds:
-      - task: format:check:prettier
       - task: format:check:clang
+      - task: format:check:prettier
+      - task: format:check:ruff
       - cmd: echo "✅ Code format check completed"
     desc: 'Check code formatting without fixing'
+    summary: |
+      Check code formatting without making changes
 
-  format:check:prettier:
-    cmds:
-      - |
-        {{.__TF_MISE_E}} npx prettier --check "./**/*.{json,toml,yaml,yml}"
-    desc: 'Check code formatting using Prettier'
-    silent: true
+      Verifies all code is properly formatted without modifying files.
+      Useful for CI pipelines to enforce formatting standards.
+
+      Examples:
+        task format:check                    # Check all formatting
 
   format:check:clang:
     cmds:
       - |
-        {{.__TF_MISE_E}} python .scripts/format-clang.py --check
-    desc: 'Check code formatting using clang-format'
+        {{.__TF_MISE_E}} python .scripts/format_clang.py --check
+    desc: 'Check C++ code formatting using clang-format'
     silent: true
+    summary: |
+      Check C++ code formatting without fixing
+
+      Verifies C++ files are properly formatted using clang-format.
+      Exits with error if any files need formatting.
+
+      Examples:
+        task format:check:clang              # Check C++ formatting
+
+  format:check:prettier:
+    cmds:
+      - task: prettier
+        vars:
+          CLI_ARGS: '--check .'
+      - echo "- ✅ prettier format check completed"
+    desc: 'Check code formatting using Prettier'
+    silent: true
+    summary: |
+      Check Prettier formatting without fixing
+
+      Verifies configuration files are properly formatted.
+      Exits with error if any files need formatting.
+
+      Examples:
+        task format:check:prettier           # Check Prettier formatting
+
+  format:check:ruff:
+    aliases: [format:check:py, format:check:python]
+    cmds:
+      - task: ruff
+        vars:
+          CLI_ARGS: 'format --check .'
+      - echo "- ✅ ruff format check completed"
+    desc: 'Check Python code formatting using Ruff'
+    silent: true
+    summary: |
+      Check Python code formatting without fixing
+
+      Verifies Python files are properly formatted using Ruff.
+      Exits with error if any files need formatting.
+
+      Examples:
+        task format:check:ruff               # Check Python formatting
+        task format:check:py                 # Alias
 
   lint:
-    desc: 'Run linter and fix issues'
     cmds:
-      - task: lint:eslint
-      - task: lint:powershell
-      - task: lint:shellcheck
       - task: lint:clang
+      - task: lint:eslint
+      - task: lint:pylint
+      - task: lint:pwshlint
+      - task: lint:shlint
       - cmd: echo "✅ Linting completed"
+    desc: 'Run linter and fix issues'
+    summary: |
+      Run all linters and fix issues
 
-  lint:staged:
-    desc: 'Run linter on staged files and fix issues'
+      Runs all linters in sequence with auto-fix enabled:
+        1. clang-tidy for C++ files
+        2. ESLint for config files
+        3. Pylint for Python files
+        4. PSScriptAnalyzer for PowerShell files
+        5. ShellCheck for shell scripts
+
+      Examples:
+        task lint                            # Lint and fix all code
+
+  lint:clang:
     cmds:
       - |
-        {{.__TF_MISE_E}} npx -y lint-staged
+        {{.__TF_MISE_E_UV_RUN}} python .scripts/lint_clang.py --fix
+      - echo "- ✅ clang lint completed"
+    deps:
+      - task: build
+        vars:
+          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+    desc: 'Lint C++ code and fix issues'
     silent: true
+    summary: |
+      Lint C++ code using clang-tidy
+
+      Analyzes C++ code for bugs, style issues, and performance
+      problems. Requires compile_commands.json from a previous build.
+
+      Examples:
+        task lint:clang                      # Lint C++ with fixes
 
   lint:eslint:
     cmds:
-      - |
-        {{.__TF_MISE_E}} npx eslint --fix "./**/*.{json,toml,yaml,yml}"
+      - task: eslint
+        vars:
+          CLI_ARGS: '--fix .'
       - echo "- ✅ eslint lint completed"
     desc: 'Lint code using ESLint'
     silent: true
+    summary: |
+      Lint configuration files using ESLint
 
-  lint:clang:
-    deps:
-      - task: build
-        vars:
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+      Analyzes JSON, YAML, Markdown files for issues and
+      automatically fixes what it can.
+
+      Examples:
+        task lint:eslint                     # Lint config files
+
+  eslint:
     cmds:
       - |
-        {{.__TF_MISE_E_UV_RUN}} python .scripts/lint-clang.py --fix
-      - echo "- ✅ clang lint completed"
-    desc: 'Lint code and fix issues'
+        {{.__TF_MISE_E}} npx eslint {{.CLI_ARGS}}
+    desc: 'Run ESLint'
     silent: true
+    sources:
+      - '**/*.{json,md,toml,yaml,yml}'
+    summary: |
+      Run ESLint with custom arguments
 
-  lint:powershell:
+      Internal task for running ESLint. Use lint:eslint or
+      lint:check:eslint instead.
+
+      Variables:
+        CLI_ARGS: Arguments to pass to ESLint
+
+  lint:pylint:
+    aliases: [lint:py, lint:python]
+    cmds:
+      - task: pylint
+        vars:
+          CLI_ARGS: '.'
+      - echo "- ✅ pylint lint completed"
+    desc: 'Lint Python scripts using pylint'
+    silent: true
+    summary: |
+      Lint Python code using Pylint
+
+      Analyzes Python files for errors, coding standards,
+      and code smells.
+
+      Examples:
+        task lint:pylint                     # Lint Python files
+        task lint:py                         # Alias
+
+  pylint:
+    cmds:
+      - |
+        {{.__TF_MISE_E_UV_RUN}} pylint {{.CLI_ARGS}}
+    desc: 'Run pylint'
+    silent: true
+    sources:
+      - '**/*.py'
+    summary: |
+      Run Pylint with custom arguments
+
+      Internal task for running Pylint. Use lint:pylint instead.
+
+      Variables:
+        CLI_ARGS: Arguments to pass to Pylint
+
+  lint:pwshlint:
     aliases: [lint:pwsh]
     cmds:
-      - |
-        {{.__TF_MISE_E}} pwsh -NoProfile -File .scripts/lint-powershell.ps1 -Fix {{if .STAGED}}-Staged{{end}}
+      - task: pwshlint_py
+        vars:
+          CLI_ARGS: '--fix'
       - echo "- ✅ pwsh lint completed"
     desc: 'Lint PowerShell scripts using PSScriptAnalyzer'
     silent: true
+    summary: |
+      Lint PowerShell scripts using PSScriptAnalyzer
 
-  lint:shellcheck:
-    aliases: [lint:sh, lint:bash]
+      Analyzes PowerShell files for best practices and
+      common issues.
+
+      Examples:
+        task lint:pwshlint                   # Lint PowerShell files
+        task lint:pwsh                       # Alias
+
+  pwshlint_py:
     cmds:
-      - cmd: |
-          {{.__TF_MISE_E}} bash .scripts/lint-shellcheck.sh --fix {{if .STAGED}}--staged{{end}}
-        platforms: [darwin, linux]
-      - cmd: |
-          {{.__TF_MISE_E}} pwsh -NoProfile -File .scripts/lint-shellcheck.ps1 -Fix {{if .STAGED}}-Staged{{end}}
-        platforms: [windows]
+      - |
+        {{.__TF_MISE_E_UV_RUN}} .scripts/pwshlint.py {{.CLI_ARGS}}
+    desc: 'Run PSScriptAnalyzer'
+    silent: true
+    sources:
+      - '**/*.ps1'
+    summary: |
+      Run PSScriptAnalyzer with custom arguments
+
+      Internal task for running PSScriptAnalyzer.
+      Use lint:pwshlint instead.
+
+      Variables:
+        CLI_ARGS: Arguments to pass to pwshlint.py
+
+  lint:shlint:
+    aliases: [lint:bash, lint:sh]
+    cmds:
+      - task: shlint_py
+        vars:
+          CLI_ARGS: '--fix'
       - echo "- ✅ bash lint completed"
     desc: 'Lint shell scripts using ShellCheck'
     silent: true
+    summary: |
+      Lint shell scripts using ShellCheck
+
+      Analyzes shell scripts for common bugs and
+      portability issues.
+
+      Examples:
+        task lint:shlint                     # Lint shell scripts
+        task lint:sh                         # Alias
+        task lint:bash                       # Alias
+
+  shlint_py:
+    cmds:
+      - cmd: |
+          {{.__TF_MISE_E}} python .scripts/shlint.py {{.CLI_ARGS}}
+        platforms: [darwin, linux, windows]
+    desc: 'Run ShellCheck'
+    silent: true
+    sources:
+      - '**/*.sh'
+    summary: |
+      Run ShellCheck with custom arguments
+
+      Internal task for running ShellCheck.
+      Use lint:shlint instead.
+
+      Variables:
+        CLI_ARGS: Arguments to pass to shlint.py
 
   lint:check:
-    desc: 'Run linter without fixing'
     cmds:
-      - task: lint:check:eslint
       - task: lint:check:clang
-      - task: lint:check:powershell
-      - task: lint:check:shellcheck
+      - task: lint:check:eslint
+      - task: lint:check:pylint
+      - task: lint:check:pwshlint
+      - task: lint:check:shlint
       - cmd: echo "✅ Linting check completed"
+    desc: 'Run linter without fixing'
+    summary: |
+      Run all linters without fixing issues
 
-  lint:check:eslint:
-    cmds:
-      - |
-        {{.__TF_MISE_E}} npx eslint "./**/*.{toml,json,yaml,yml}"
-      - echo "- ✅ eslint lint check completed"
-    desc: 'Check config files using eslint'
-    silent: true
+      Checks code for linting issues without modifying files.
+      Useful for CI pipelines to enforce coding standards.
+
+      Examples:
+        task lint:check                      # Check all linting
 
   lint:check:clang:
+    cmds:
+      - |
+        {{.__TF_MISE_E_UV_RUN}} python .scripts/lint_clang.py
+      - echo "- ✅ clang lint check completed"
     deps:
       - task: build
         vars:
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-    cmds:
-      - |
-        {{.__TF_MISE_E_UV_RUN}} python .scripts/lint-clang.py
-      - echo "- ✅ clang lint check completed"
-    desc: 'Check C++ scripts using clang-tidy'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+    desc: 'Check C++ code using clang-tidy'
     silent: true
+    summary: |
+      Check C++ code using clang-tidy without fixing
 
-  lint:check:powershell:
+      Analyzes C++ code and reports issues without modifying files.
+
+      Examples:
+        task lint:check:clang                # Check C++ linting
+
+  lint:check:eslint:
+    cmds:
+      - task: eslint
+        vars:
+          CLI_ARGS: '.'
+      - echo "- ✅ eslint lint check completed"
+    desc: 'Check config files using eslint'
+    silent: true
+    summary: |
+      Check ESLint without fixing
+
+      Analyzes configuration files and reports issues.
+
+      Examples:
+        task lint:check:eslint               # Check ESLint
+
+  lint:check:pylint:
+    aliases: [lint:check:py, lint:check:python]
+    cmds:
+      - task: lint:pylint
+      - echo "- ✅ pylint lint check completed"
+    desc: 'Check Python scripts using pylint'
+    silent: true
+    summary: |
+      Check Python code using Pylint without fixing
+
+      Analyzes Python files and reports issues.
+
+      Examples:
+        task lint:check:pylint               # Check Python linting
+        task lint:check:py                   # Alias
+
+  lint:check:pwshlint:
     aliases: [lint:check:pwsh]
     cmds:
-      - |
-        {{.__TF_MISE_E}} pwsh -NoProfile -File .scripts/lint-powershell.ps1 {{if .STAGED}}-Staged{{end}}
+      - task: pwshlint_py
       - echo "- ✅ pwsh lint completed"
     desc: 'Check PowerShell scripts using PSScriptAnalyzer'
     silent: true
+    summary: |
+      Check PowerShell scripts without fixing
 
-  lint:check:shellcheck:
-    aliases: [lint:check:sh, lint:check:bash]
+      Analyzes PowerShell files and reports issues.
+
+      Examples:
+        task lint:check:pwshlint             # Check PowerShell linting
+        task lint:check:pwsh                 # Alias
+
+  lint:check:shlint:
+    aliases: [lint:check:bash, lint:check:sh]
     cmds:
-      - cmd: |
-          {{.__TF_MISE_E}} bash .scripts/lint-shellcheck.sh {{if .STAGED}}--staged{{end}}
-        platforms: [darwin, linux]
-      - cmd: |
-          {{.__TF_MISE_E}} pwsh -NoProfile -File .scripts/lint-shellcheck.ps1 {{if .STAGED}}-Staged{{end}}
-        platforms: [windows]
+      - task: shlint_py
       - echo "- ✅ bash lint completed"
     desc: 'Check shell scripts using ShellCheck'
     silent: true
+    summary: |
+      Check shell scripts without fixing
 
-  duplicate-check:
-    desc: 'Check for duplicate code using jscpd'
+      Analyzes shell scripts and reports issues.
+
+      Examples:
+        task lint:check:shlint               # Check shell linting
+        task lint:check:sh                   # Alias
+
+  lint-staged:
     cmds:
       - |
-        {{.__TF_MISE_E}} npx jscpd src/ include/
+        {{.__TF_MISE_E}} npx -y lint-staged
+    desc: 'Run linter on staged files and fix issues'
+    silent: true
+    summary: |
+      Run linters on git staged files only
+
+      Runs appropriate linters on files staged for commit.
+      Used by pre-commit hooks for fast feedback.
+
+      Examples:
+        task lint-staged                     # Lint staged files
+
+  duplicate-check:
+    cmds:
+      - |
+        {{.__TF_MISE_E}} npm run duplicate-check
       - git add .jscpd/jscpd-badge.svg 2>/dev/null || true
+    desc: 'Check for duplicate code using jscpd'
+    summary: |
+      Check for duplicate code using jscpd
+
+      Scans the codebase for copy-pasted code blocks and
+      generates a report. Updates the duplication badge.
+
+      Examples:
+        task duplicate-check                 # Check for duplicates
 
   # ============================================================================
   # Test Tasks
   # ============================================================================
 
   test:
-    desc: 'Run tests (system: {{.CPP_BUILD_SYSTEM}})'
-    deps:
-      - task: build
-        vars:
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_BUILD_TYPE: Debug
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
     cmds:
       - task: test:{{.CPP_BUILD_SYSTEM}}
         vars:
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_COMPILER: '{{.CPP_COMPILER}}'
+    deps:
+      - task: build
+        vars:
+          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+          CPP_BUILD_TYPE: Debug
+          CPP_COMPILER: '{{.CPP_COMPILER}}'
+    desc: 'Run tests (system: {{.CPP_BUILD_SYSTEM}})'
     silent: true
+    summary: |
+      Run tests for the C++ project
+
+      Builds the project in Debug mode and runs all tests using
+      the configured build system's test runner.
+
+      Variables:
+        CPP_BUILD_SYSTEM: Build system to use (default: cmake)
+        CPP_COMPILER:     Compiler to use (default: clang++)
+
+      Examples:
+        task test                            # Run tests
+        task test CPP_BUILD_SYSTEM=bazel     # Run tests with Bazel
 
   test:bazel:
-    desc: 'Run tests with Bazel'
     cmds:
       - cmd: |
           {{if eq OS "linux"}}
@@ -406,42 +1006,66 @@ tasks:
         platforms: [windows]
       - task: test:gen-coverage
         vars:
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_COMPILER: '{{.CPP_COMPILER}}'
       - echo "- ✅ tests completed"
+    desc: 'Run tests with Bazel'
     silent: true
+    summary: |
+      Run tests using Bazel test runner
+
+      Runs all tests in the tests/ directory using Bazel.
+      Coverage is generated on Linux with g++ compiler.
+
+      Examples:
+        task test:bazel                      # Run Bazel tests
 
   test:cmake:
-    desc: 'Run tests with CMake'
     cmds:
       - |
         cd {{.CPP_BUILD_DIR}} && {{.__TF_MISE_E_UV_RUN}} ctest --output-on-failure {{if eq .CPP_COMPILER "msvc"}}-C Debug{{end}}
       - task: test:gen-coverage
         vars:
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_COMPILER: '{{.CPP_COMPILER}}'
       - echo "- ✅ tests completed"
+    desc: 'Run tests with CMake'
     silent: true
+    summary: |
+      Run tests using CTest (CMake test runner)
+
+      Runs all tests using CTest with verbose output on failure.
+      Generates coverage report if compiler supports it.
+
+      Examples:
+        task test:cmake                      # Run CMake tests
 
   test:xmake:
-    desc: 'Run tests with XMake'
-    vars:
-      XMAKE_MODE: '{{if eq .CPP_BUILD_TYPE "Debug"}}debug{{else}}release{{end}}'
     cmds:
       - |
         {{.__TF_MISE_E}} xmake run -y {{.CPP_PROJECT_NAME}}-tests
       - task: test:gen-coverage
         vars:
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}/{{.XMAKE_MODE}}'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
           CPP_COMPILER: '{{.CPP_COMPILER}}'
       - echo "- ✅ tests completed"
+    desc: 'Run tests with XMake'
     silent: true
+    summary: |
+      Run tests using XMake test runner
+
+      Runs the test executable built by XMake.
+      Generates coverage report if compiler supports it.
+
+      Examples:
+        task test:xmake                      # Run XMake tests
+    vars:
+      XMAKE_MODE: '{{if eq .CPP_BUILD_TYPE "Debug"}}debug{{else}}release{{end}}'
 
   test:gen-coverage:
-    desc: 'Generate coverage report'
     cmds:
       - cmd: |
           {{if eq .CPP_COMPILER "msvc"}}
@@ -544,20 +1168,26 @@ tasks:
             {{end}}
           {{end}}
         platforms: [windows]
+    desc: 'Generate coverage report'
     silent: true
+    summary: |
+      Generate test coverage report
+
+      Generates HTML coverage reports from test runs.
+      Coverage support varies by build system and compiler:
+        - Bazel: g++ on Linux only
+        - CMake/XMake: clang++ or g++ (not MSVC)
+
+      Output is placed in coverage/index.html.
+
+      Examples:
+        task test:gen-coverage               # Generate coverage
 
   # ============================================================================
   # Development Tools
   # ============================================================================
 
   run:
-    desc: 'Run application'
-    deps:
-      - task: build
-        vars:
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
     cmds:
       - |
         echo "🏃 Running application..."
@@ -567,16 +1197,24 @@ tasks:
             else}}(Get-ChildItem ./$BUILD_PATH{{if eq .CPP_BUILD_SYSTEM "bazel"}}/*-opt/bin{{end}} -Recurse -Filter {{
               .CPP_PROJECT_NAME}}.exe | Select-Object -First 1).FullName | ForEach-Object { & $_ }{{
             end}}'
-
-  debug:
-    desc: 'Run application with debugger (gdb on Linux/macOS)'
     deps:
       - task: build
         vars:
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_BUILD_TYPE: Debug
           CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+          CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+    desc: 'Run application'
+    summary: |
+      Build and run the application
+
+      Builds the project in Release mode and runs the resulting
+      binary. Automatically locates the binary in the build output.
+
+      Examples:
+        task run                             # Build and run
+        task run CPP_BUILD_SYSTEM=bazel      # Run Bazel build
+
+  debug:
     cmds:
       - cmd: |
           {{if eq OS "windows"}}
@@ -590,37 +1228,82 @@ tasks:
                 .CPP_PROJECT_NAME}}.exe | Select-Object -First 1).FullName | ForEach-Object { Write-Host "gdb `"$_`"" }'
           exit 0
           {{else}}
-          if ! command -v gdb >/dev/null 2>&1; then
-            echo "⚠️ gdb not found. Please install gdb first."
+          if command -v lldb >/dev/null 2>&1; then
+            echo "🐛 Starting lldb debugger..."
+            lldb $(find ./{{if eq .CPP_BUILD_SYSTEM "bazel"}}bazel-out/*-dbg{{else}}{{.CPP_BUILD_DIR}}{{end}} -name {{.CPP_PROJECT_NAME}} | head -n 1)
+          elif command -v gdb >/dev/null 2>&1; then
+            echo "🐛 Starting gdb debugger..."
+            gdb $(find ./{{if eq .CPP_BUILD_SYSTEM "bazel"}}bazel-out/*-dbg{{else}}{{.CPP_BUILD_DIR}}{{end}} -name {{.CPP_PROJECT_NAME}} | head -n 1)
+          else
+            echo "⚠️ No debugger found. Please install gdb or lldb."
             exit 1
           fi
-          echo "🐛 Starting gdb debugger..."
-          gdb $(find ./{{if eq .CPP_BUILD_SYSTEM "bazel"}}bazel-out/*-dbg{{else}}{{.CPP_BUILD_DIR}}{{end}} -name {{.CPP_PROJECT_NAME}} | head -n 1)
           {{end}}
+    deps:
+      - task: build
+        vars:
+          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+          CPP_BUILD_TYPE: Debug
+          CPP_COMPILER: '{{.CPP_COMPILER}}'
+    desc: 'Run application with debugger (gdb/lldb)'
+    summary: |
+      Build and run application with debugger
+
+      Builds the project in Debug mode and launches it in a debugger.
+      Uses lldb on macOS, gdb on Linux. Windows users should use
+      Visual Studio or their IDE's debugger.
+
+      Examples:
+        task debug                           # Build and debug
 
   # ============================================================================
   # Documentation Tasks
   # ============================================================================
 
   docs:
-    desc: 'Build documentation'
     cmds:
       - |
         {{.__TF_MISE_E_UV_RUN}} mkdocs build
+    desc: 'Build documentation'
+    summary: |
+      Build project documentation
+
+      Generates static HTML documentation from Markdown files
+      using MkDocs. Output is placed in docs-html/.
+
+      Examples:
+        task docs                            # Build docs
 
   docs:serve:
-    desc: 'Serve documentation locally with live reload'
     cmds:
       - |
         echo "📚 Starting documentation server..."
         echo "📖 Open http://127.0.0.1:8000 in your browser"
         {{.__TF_MISE_E_UV_RUN}} mkdocs serve
+    desc: 'Serve documentation locally with live reload'
+    summary: |
+      Serve documentation with live reload
+
+      Starts a local development server for documentation.
+      Changes to Markdown files are reflected immediately.
+
+      Examples:
+        task docs:serve                      # Start docs server
 
   docs:deploy:
-    desc: 'Deploy documentation to GitHub Pages'
     cmds:
       - |
         {{.__TF_MISE_E_UV_RUN}} mkdocs gh-deploy --force
+    desc: 'Deploy documentation to GitHub Pages'
+    summary: |
+      Deploy documentation to GitHub Pages
+
+      Builds documentation and pushes to the gh-pages branch
+      for hosting on GitHub Pages.
+
+      Examples:
+        task docs:deploy                     # Deploy to GitHub Pages
 
   # ============================================================================
   # Validation Tasks
@@ -628,42 +1311,62 @@ tasks:
 
   validate:
     cmds:
-      - cmd: |
-          {{range $build := .__TF_VALIDATION_CPP_BUILD_SYSTEMS | splitList " "}}
-            task validate:by:build-system CPP_BUILD_SYSTEM="{{$build}}"
-          {{end}}
+      - for:
+          var: __TF_VALIDATION_CPP_BUILD_SYSTEMS
+          split: ' '
+        task: validate:by:build-system
+        vars:
+          CPP_BUILD_SYSTEM: '{{.ITEM}}'
     desc: 'Run integration tests for all build systems'
     silent: true
+    summary: |
+      Run full validation for all build systems
+
+      Runs the complete CI pipeline for each build system
+      (bazel, cmake, xmake) with each compatible compiler.
+
+      This is a comprehensive test that takes significant time.
+
+      Examples:
+        task validate                        # Validate all systems
 
   validate:by:build-system:
     cmds:
-      - cmd: |
-          bs='{{.CPP_BUILD_SYSTEM}}'
-          hl="{{.__TF_HEADER_LINE}}"
-          {{range $compiler := .__TF_VALIDATION__CPP_COMPILERS | splitList " "}}
-            echo $hl
-            echo "🏃 Running validation for $bs with {{$compiler}}..."
-            echo $hl
-            echo ""
-            task validate:by:build-system:compiler \
-              CPP_PROJECT_NAME="cpp-template" \
-              CPP_BUILD_SYSTEM="$bs" \
-              CPP_COMPILER="{{$compiler}}" \
-              CPP_BUILD_DIR="build"
-          {{end}}
+      - for:
+          var: __TF_VALIDATION__CPP_COMPILERS
+          split: ' '
+        task: validate:by:build-system:compiler
+        vars:
+          CPP_BUILD_DIR: 'build'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+          CPP_COMPILER: '{{.ITEM}}'
+          CPP_PROJECT_NAME: 'cpp-template'
     desc: 'Run CI pipeline for specific build system'
     silent: true
+    summary: |
+      Run validation for a specific build system
+
+      Runs the CI pipeline for the specified build system
+      with all compatible compilers.
+
+      Variables:
+        CPP_BUILD_SYSTEM: Build system to validate
+
+      Examples:
+        task validate:by:build-system CPP_BUILD_SYSTEM=cmake
 
   validate:by:build-system:compiler:
     cmds:
       - task: format
+      - task: clean
+      - task: build:dist
       - task: clean
       - task: build
       - task: lint
       - task: run
       - task: clean
       - task: test
-      # - task: docs
+      - task: docs
       - cmd: |
           echo ""
           echo "{{.__TF_HEADER_LINE}}"
@@ -672,6 +1375,26 @@ tasks:
           echo ""
     desc: 'Run CI pipeline for specific build system and compiler'
     silent: true
+    summary: |
+      Run validation for specific build system and compiler
+
+      Runs the complete CI pipeline:
+        1. Format code
+        2. Clean build artifacts
+        3. Build project
+        4. Run linters
+        5. Run application
+        6. Clean and rebuild for tests
+        7. Run tests
+        8. Build documentation
+
+      Variables:
+        CPP_BUILD_SYSTEM: Build system to use
+        CPP_COMPILER:     Compiler to use
+
+      Examples:
+        task validate:by:build-system:compiler \
+          CPP_BUILD_SYSTEM=cmake CPP_COMPILER=clang++
 
   # ============================================================================
   # Dependencies
@@ -683,17 +1406,34 @@ tasks:
       - task: deps:clean:npm
       - task: deps:clean:uv
     desc: 'Clean all project dependencies'
+    summary: |
+      Clean all project dependencies
+
+      Removes all installed dependencies:
+        - Mise tool installations
+        - Node.js node_modules
+        - Python virtual environment
+
+      Examples:
+        task deps:clean                      # Clean all deps
 
   deps:clean:mise:
     cmds:
       - echo "🧹 Cleaning Mise dependencies..."
-      - cmd: rm -rf ~/.local/share/mise/installs
-        platforms: [darwin, linux]
       - cmd: |
-          {{.__TF_MISE_E_PWSH_FILE}} 'Remove-Item -Recurse -Force $env:LOCALAPPDATA\mise\installs'
-        platforms: [windows]
+          rm -rf \
+            ~/.local/share/mise/installs \
+            ~/AppData/mise/installs
       - echo "✓ Mise environment cleaned"
     desc: 'Clean Mise dependencies'
+    summary: |
+      Clean Mise tool installations
+
+      Removes all tools installed by Mise from the global
+      installation directory.
+
+      Examples:
+        task deps:clean:mise                 # Clean Mise tools
 
   deps:clean:npm:
     cmds:
@@ -702,6 +1442,13 @@ tasks:
         rm -rf node_modules package-lock.json
         echo "✓ NodeJs environment cleaned"
     desc: 'Clean NodeJs dependencies'
+    summary: |
+      Clean Node.js dependencies
+
+      Removes node_modules directory and package-lock.json.
+
+      Examples:
+        task deps:clean:npm                  # Clean npm deps
 
   deps:clean:uv:
     cmds:
@@ -710,6 +1457,13 @@ tasks:
         rm -rf .venv uv.lock
         echo "✓ Python environment cleaned"
     desc: 'Clean Python dependencies'
+    summary: |
+      Clean Python dependencies
+
+      Removes the virtual environment and uv lock file.
+
+      Examples:
+        task deps:clean:uv                   # Clean Python deps
 
   deps:sync:
     cmds:
@@ -717,33 +1471,50 @@ tasks:
       - task: deps:sync:npm
       - task: deps:sync:uv
     desc: 'Install all project dependencies'
+    summary: |
+      Install all project dependencies
+
+      Installs all dependencies in order:
+        1. Mise tools (compilers, build systems)
+        2. Node.js packages (linters, formatters)
+        3. Python packages (build scripts, docs)
+
+      Examples:
+        task deps:sync                       # Install all deps
 
   deps:sync:mise:
     cmds:
       - |
         echo "📦 Installing Mise dependencies..."
-        if [ ! -f .mise.local.lock ] && [ ! -f .mise.lock ]; then
-          echo "⚠️  .mise.local.lock not found; sync won't generate .mise.lock automatically."
-          echo "Please create a .mise.local.lock file or a .mise.lock file to proceed."
-          echo ""
-          echo "[settings]"
-          echo "experimental = true"
-          echo "lockfile = true"
-          echo ""
-          exit 1
-        fi
+        touch mise.lock
         mise trust && mise install --yes
         echo "✓ Mise environment ready"
     desc: 'Install Mise dependencies'
+    summary: |
+      Install Mise tool dependencies
+
+      Installs all tools defined in .mise.toml including
+      compilers, build systems, and development tools.
+
+      Examples:
+        task deps:sync:mise                  # Install Mise tools
 
   deps:sync:npm:
     cmds:
       - |
         echo "📦 Installing NodeJs dependencies..."
         {{.__TF_MISE_E}} npm install
-        npx husky
+        {{.__TF_MISE_E}} npx husky
         echo "✓ NodeJs environment ready"
     desc: 'Install NodeJs dependencies'
+    summary: |
+      Install Node.js dependencies
+
+      Installs npm packages from package.json and sets up
+      Husky git hooks.
+
+      Examples:
+        task deps:sync:npm                   # Install npm packages
 
   deps:sync:uv:
     cmds:
@@ -752,20 +1523,48 @@ tasks:
         {{.__TF_MISE_E}} uv sync
         echo "✓ Python environment ready"
     desc: 'Install Python dependencies'
+    summary: |
+      Install Python dependencies
+
+      Creates a virtual environment and installs packages
+      from pyproject.toml using uv.
+
+      Examples:
+        task deps:sync:uv                    # Install Python packages
 
   deps:refresh:
     cmds:
       - task: deps:refresh:mise
       - task: deps:refresh:npm
+      - task: deps:refresh:uv
     desc: 'Refresh all project dependencies'
+    summary: |
+      Update all project dependencies
+
+      Updates all dependencies to their latest compatible versions:
+        1. Mise tools
+        2. Node.js packages
+        3. Python packages
+
+      Examples:
+        task deps:refresh                    # Update all deps
 
   deps:refresh:mise:
     cmds:
       - |
         echo "🔄 Refreshing Mise packages..."
-        mise upgrade
+        touch mise.lock
+        mise trust && mise upgrade
         echo "✓ Packages refreshed"
     desc: 'Refresh all Mise packages (update dependencies)'
+    summary: |
+      Update Mise tools to latest versions
+
+      Upgrades all Mise-managed tools to their latest versions
+      as allowed by .mise.toml constraints.
+
+      Examples:
+        task deps:refresh:mise               # Update Mise tools
 
   deps:refresh:npm:
     cmds:
@@ -776,6 +1575,14 @@ tasks:
           && {{.__TF_MISE_E}} npm audit fix
         echo "✓ Packages refreshed"
     desc: 'Refresh all NodeJs packages (update dependencies)'
+    summary: |
+      Update Node.js packages to latest versions
+
+      Shows outdated packages, updates them, and runs
+      security audit fixes.
+
+      Examples:
+        task deps:refresh:npm                # Update npm packages
 
   deps:refresh:uv:
     cmds:
@@ -784,3 +1591,11 @@ tasks:
         {{.__TF_MISE_E}} uv sync --upgrade
         echo "✓ Packages refreshed"
     desc: 'Refresh all Python packages (update dependencies)'
+    summary: |
+      Update Python packages to latest versions
+
+      Updates all Python packages to their latest versions
+      as allowed by pyproject.toml constraints.
+
+      Examples:
+        task deps:refresh:uv                 # Update Python packages

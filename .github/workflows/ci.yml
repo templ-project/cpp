@@ -8,21 +8,41 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  # Define build matrix - only OS runners, architectures are defined in .build-targets.yml
+  matrix:
+    name: Define Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      runners: ${{ steps.set-matrix.outputs.runners }}
+    steps:
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          # OS runners - each runner builds all architectures for its OS
+          # Architecture targets are defined in .build-targets.yml
+          echo 'runners=[
+            "ubuntu-latest",
+            "macos-latest",
+            "windows-latest"
+          ]' | tr -d '\n' | tr -s ' ' >> $GITHUB_OUTPUT
+
   # Validation & Build matrix for different platforms
-  build:
-    name: Build
+  # Option A: build,lint,test before version bump (slower, but validates before release)
+  # Option B: lint,test only before version bump (faster, build happens at release time)
+  quality:
+    name: Quality (${{ matrix.runner }})
+    needs: [matrix]
     if: |
       !contains(github.event.head_commit.message, 'version_bump/')
     strategy:
       matrix:
-        os:
-          - macos-latest
-          - ubuntu-latest
-          - windows-latest
-    uses: ./.github/workflows/ci.build.yml
+        runner: ${{ fromJson(needs.matrix.outputs.runners) }}
+    uses: ./.github/workflows/ci.quality.yml
+    permissions:
+      contents: write
     with:
-      os: ${{ matrix.os }}
-      build_system: '["bazel", "xmake", "cmake"]'
+      runs-on: ${{ matrix.runner }}
+      jobs: lint,test # Change to 'build,lint,test' to build before version bump
 
   # Version bump (only on main branch push, uses conventional commits)
   version-bump:
@@ -31,12 +51,14 @@ jobs:
       always()
       && github.event_name == 'push'
       && github.ref == 'refs/heads/main'
-      && (needs.build.result == 'success' || needs.build.result == 'skipped')
-    needs: [build]
+      && (needs.quality.result == 'success' || needs.quality.result == 'skipped')
+    needs: [matrix, quality]
     uses: ./.github/workflows/ci.version.yml
     permissions:
       contents: write
       pull-requests: write
+    with:
+      runs-on: ubuntu-latest
     secrets:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
@@ -52,7 +74,7 @@ jobs:
     steps:
       - name: Download version artifact
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: version-output
           path: version-output
@@ -69,7 +91,7 @@ jobs:
             echo "Extracted tag: $TAG"
             echo "Extracted version: $VERSION"
           else
-            echo "⚠ version.json not found in artifact - skipping"
+            echo "version.json not found in artifact - skipping"
             echo "tag=" >> $GITHUB_OUTPUT
             echo "version=" >> $GITHUB_OUTPUT
           fi
@@ -77,10 +99,10 @@ jobs:
   # Release (only on main branch push after version bump)
   release:
     name: Create Release
+    needs: [matrix, quality, version-detect]
     if: |
       always()
       && needs.version-detect.outputs.tag != ''
-    needs: [version-detect]
     uses: ./.github/workflows/ci.release.yml
     permissions:
       contents: write

@@ -14,7 +14,6 @@ Usage:
 import argparse
 import os
 import platform
-import subprocess
 import sys
 from pathlib import Path
 
@@ -29,6 +28,7 @@ except ImportError:
 def get_template_context():
     """Extract configuration from environment variables set by .mise.toml"""
     compiler = os.getenv("CPP_COMPILER", "clang++")
+    target_arch = os.getenv("CPP_TARGET_ARCH", "")
 
     return {
         "build_system": os.getenv("CPP_BUILD_SYSTEM", "cmake"),
@@ -36,6 +36,7 @@ def get_template_context():
         "build_dir": os.getenv("CPP_BUILD_DIR", "build"),
         "compiler": compiler,
         "project_name": os.getenv("CPP_PROJECT_NAME", "cpp-template"),
+        "target_arch": target_arch,
         "os": lambda: platform.system().lower(),  # Add os() function for templates
         "os_env": os.getenv,
     }
@@ -47,7 +48,10 @@ def compile_template(template_name: str, output_path: Path, context: dict) -> No
     templates_dir = project_root / "templates"
 
     if not templates_dir.exists():
-        print(f"❌ Error: Templates directory not found at {templates_dir}", file=sys.stderr)
+        print(
+            f"❌ Error: Templates directory not found at {templates_dir}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Setup Jinja2 environment
@@ -69,7 +73,7 @@ def compile_template(template_name: str, output_path: Path, context: dict) -> No
         output_path.write_text(rendered)
         print(f"✓ Generated: {output_path.relative_to(project_root)}")
 
-    except Exception as e:
+    except (FileNotFoundError, PermissionError, OSError) as e:
         print(f"❌ Error rendering {template_name}: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -78,7 +82,9 @@ def compile_cmake_templates(context: dict) -> None:
     """Compile CMake configuration files"""
     project_root = Path(__file__).parent.parent
     compile_template("CMakeLists.txt.j2", project_root / "CMakeLists.txt", context)
-    compile_template("src_CMakeLists.txt.j2", project_root / "src" / "CMakeLists.txt", context)
+    compile_template(
+        "src_CMakeLists.txt.j2", project_root / "src" / "CMakeLists.txt", context
+    )
 
 
 def compile_xmake_templates(context: dict) -> None:
@@ -91,13 +97,16 @@ def compile_bazel_templates(context: dict) -> None:
     """Compile Bazel configuration files"""
     project_root = Path(__file__).parent.parent
     compile_template("BUILD.bazel.j2", project_root / "BUILD.bazel", context)
-    compile_template("tests_BUILD.bazel.j2", project_root / "tests" / "BUILD.bazel", context)
+    compile_template(
+        "tests_BUILD.bazel.j2", project_root / "tests" / "BUILD.bazel", context
+    )
     compile_template(".bazelrc.j2", project_root / ".bazelrc", context)
     compile_template("MODULE.bazel.j2", project_root / "MODULE.bazel", context)
     compile_template("WORKSPACE.j2", project_root / "WORKSPACE", context)
 
 
 def main():
+    """Main entry point for template compilation."""
     parser = argparse.ArgumentParser(
         description="Compile Jinja2 templates for build system configuration"
     )
@@ -111,6 +120,12 @@ def main():
         "--compiler",
         help="C++ compiler path (overrides CPP_COMPILER env var)",
     )
+    parser.add_argument(
+        "--arch",
+        choices=["x86_64", "aarch64", "i686", "arm64", ""],
+        default="",
+        help="Target architecture (x86_64, aarch64/arm64, i686)",
+    )
 
     args = parser.parse_args()
 
@@ -121,11 +136,18 @@ def main():
     if args.compiler:
         context["compiler"] = args.compiler
 
+    # Override arch if provided via CLI
+    if args.arch:
+        # Normalize arm64 to aarch64
+        context["target_arch"] = "aarch64" if args.arch == "arm64" else args.arch
+
     print(f"📝 Compiling templates for {args.build_system}...")
     print(f"   Project: {context['project_name']}")
     print(f"   Build Type: {context['build_type']}")
     print(f"   Build Dir: {context['build_dir']}")
     print(f"   Compiler: {context['compiler']}")
+    if context["target_arch"]:
+        print(f"   Target Arch: {context['target_arch']}")
     print()
 
     # Compile templates based on build system

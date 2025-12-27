@@ -1,121 +1,137 @@
+# Archives
+*.tar*
+*.tgz
+*.zip
+
+# Build Folders
+build/
+build-*/
+dist/
+out/
+/Release/
+
+# Build Systems - Generated files
+.bazelrc
+.xmake
+BUILD.bazel
+BUILD.xmake
+bazel-*
+CMakeLists.txt
+CMakeLists.txt*
+compile_commands.json
+MODULE.bazel
+# TODO: remove this file from gitignore when switching to bazel
+MODULE.bazel.lock
+src/CMakeLists.txt
+tests/BUILD.bazel
+WORKSPACE
+xmake.lua
+
+# Cache folders
+.*cache/
+.task/
+
 # Code with AI
 .cwai
 .github/prompts
 
-# Logs
-logs
-*.log
-
-# Build Systems
-BUILD.bazel
-tests/BUILD.bazel
-CMakeLists.txt
-xmake.lua
-.xmake
-bazel-*
-BUILD.xmake
-
-# Generated build configuration files (from templates/)
-CMakeLists.txt*
-xmake.lua
-BUILD.bazel
-tests/BUILD.bazel
-.bazelrc
-MODULE.bazel
-src/CMakeLists.txt
-WORKSPACE
-# TODO: remove this file from gitignore when switching to bazel
-MODULE.bazel.lock
-
-# Prerequisites
-*.d
+# Compiled Dynamic libraries
+*.dll
+*.dylib
+*.so
 
 # Compiled Object files
-*.slo
 *.lo
 *.o
 *.obj
+*.slo
 
-# Precompiled Headers
-*.gch
-*.pch
+# Compiled Static libraries
+*.a
+*.la
+*.lai
+*.lib
 
-# Linker files
-*.ilk
+# Coverage files
+*.gcov
+*.lcov
+.coverage
+coverage/
+lib-cov
+
+# Debug information files
+*.dwo
 
 # Debugger Files
 *.pdb
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+# Dependencies folder (Conan output)
+/lib
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# dotenv environment variable files
+!.env.example
+.env
+.env.*
+
+# Executables
+*.app
+*.exe
+*.out
 
 # Fortran module files
 *.mod
 *.smod
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# Debug information files
-*.dwo
-
-# Coverage files
-
-coverage
-*.gcov
-*.lcov
-
-# Node modules
-node_modules/
-
-# Cache folders
-.cache/
-.task/
-
-# Build Folders
-/build/
-/Release/
-
-# Dependencies folder (Conan output)
-/lib
-
-# Optional eslint cache
-.eslintcache
-
-# Archives
-*.tgz
-*.tar*
-*.zip
-
-# dotenv environment variable files
-.env
-.env.*
-!.env.example
 # Jscpd reports
 .jscpd/html/
 
-# PSScriptAnalyzer
-.github/scripts/
+# Linker files
+*.ilk
 
-# MkDocs
-docs-html/
-
-# Python
-.venv
-*.egg-info/
-dist/
-*.egg
+# Logs
+*.log
+*.log*
+logs
 
 # mise local configs
 .mise.local.toml
 mise.local.toml
+
+# MkDocs
+docs-html/
+
+# Node modules
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Prerequisites
+*.d
+
+# PSScriptAnalyzer
+.github/scripts/
+
+# Python cache
+*.egg
+*.egg-info/
+*.pyc
+*.pyd
+*.pyo
+.ruff_cache/
+.venv/
+__pycache__/
+
+# Runtime data
+*.pid
+*.pid.lock
+*.seed
+pids

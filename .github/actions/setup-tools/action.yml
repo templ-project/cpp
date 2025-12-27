@@ -22,7 +22,8 @@ runs:
       shell: bash
       run: |
         curl https://mise.run | sh
-        echo "eval \"\$(/Users/runner/.local/bin/mise activate bash)\"" >> ~/.bashrc
+        # TODO: make sure the command works for both Linux and MacOS
+        # echo "eval \"\$(/Users/runner/.local/bin/mise activate bash)\"" >> ~/.bashrc
         mise activate
         mise --version
 
@@ -43,20 +44,26 @@ runs:
         mise self-update
         mise --version
 
-    - run: sudo apt install -y build-essential lcov
+    # === system dependencies ===
+    - name: Install system dependencies (Linux)
       if: ${{ runner.os == 'Linux' }}
       shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential lcov
 
-    - run: brew install gcc lcov
+    - name: Install system dependencies (macOS)
       if: ${{ runner.os == 'macOS' }}
       shell: bash
+      run: |
+        brew install gcc lcov
 
     # === mise === cache ===
     - uses: actions/cache@v4
       continue-on-error: true
       if: ${{ runner.os != 'Windows' }}
       with:
-        key: cpp-${{ runner.os }}-${{ runner.arch }}-mise-${{ hashFiles('.mise.lock') }}
+        key: cpp-${{ runner.os }}-${{ runner.arch }}-mise-${{ hashFiles('mise.lock') }}
         restore-keys: |
           cpp-${{ runner.os }}-${{ runner.arch }}-mise-
         path: |
@@ -67,7 +74,7 @@ runs:
       continue-on-error: true
       if: ${{ runner.os == 'Windows' }}
       with:
-        key: ${{ runner.os }}-${{ runner.arch }}-mise-${{ hashFiles('.mise.lock') }}
+        key: cpp-${{ runner.os }}-${{ runner.arch }}-mise-${{ hashFiles('mise.lock') }}
         restore-keys: |
           cpp-${{ runner.os }}-${{ runner.arch }}-mise-
         path: |
@@ -79,7 +86,7 @@ runs:
       continue-on-error: true
       if: ${{ runner.os == 'Windows' }}
       with:
-        key: ${{ runner.os }}-${{ runner.arch }}-uv-${{ hashFiles('uv.lock') }}
+        key: cpp-${{ runner.os }}-${{ runner.arch }}-uv-${{ hashFiles('uv.lock') }}
         restore-keys: |
           cpp-${{ runner.os }}-${{ runner.arch }}-uv-
         path: |
@@ -90,9 +97,9 @@ runs:
       continue-on-error: true
       if: ${{ runner.os == 'Windows' }}
       with:
-        key: ${{ runner.os }}-${{ runner.arch }}-node-${{ hashFiles('package-lock.json') }}
+        key: cpp-${{ runner.os }}-${{ runner.arch }}-node-${{ hashFiles('package-lock.json') }}
         restore-keys: |
-          ${{ runner.os }}-${{ runner.arch }}-node-
+          cpp-${{ runner.os }}-${{ runner.arch }}-node-
         path: |
           node_modules
 

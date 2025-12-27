@@ -14,6 +14,7 @@
     - [Build Systems (Choose Your Favorite!)](#build-systems-choose-your-favorite)
     - [Tooling \& Automation](#tooling--automation)
     - [Code Quality](#code-quality)
+    - [IDE Integration](#ide-integration)
     - [Testing \& Coverage](#testing--coverage)
     - [CI/CD](#cicd)
   - [Project Structure](#project-structure)
@@ -24,8 +25,12 @@
     - [1. Template-Driven Configuration](#1-template-driven-configuration)
     - [2. Mise Tool Management](#2-mise-tool-management)
     - [3. Hedron Compile Commands for Bazel](#3-hedron-compile-commands-for-bazel)
-
-    - [4. GitHub Actions Integration](#4-github-actions-integration)
+    - [4. Cross-Architecture Build Support](#4-cross-architecture-build-support)
+    - [5. GitHub Actions Integration](#5-github-actions-integration)
+  - [Known Issues and Limitations](#known-issues-and-limitations)
+    - [macOS Cross-Compilation](#macos-cross-compilation)
+    - [Bazel Hedron on macOS](#bazel-hedron-on-macos)
+    - [Mise-Only Toolchain](#mise-only-toolchain)
   - [Requirements](#requirements)
     - [Auto-Installed by Mise](#auto-installed-by-mise)
     - [Manual Installation](#manual-installation)
@@ -48,6 +53,7 @@
 - 📋 **Jinja2 Templates**: Build configurations auto-generated from templates - consistent across all systems
 - 🚀 **Zero Manual Setup**: One command gets you building, testing, and linting
 - 🎨 **Hedron Compile Commands**: Bazel now supports full clang-tidy integration via compile_commands.json
+- 🏗️ **Cross-Architecture Builds**: CMake supports cross-compilation for both aarch64 and x86_64 on macOS
 - 🤖 **GitHub Actions**: Reusable composite actions for CI/CD with caching
 
 ## Quick Start
@@ -105,8 +111,22 @@ mise run test --build-system xmake
 - ✅ **Clang/LLVM 20.1.8** - Latest compiler with libc++ on Linux/macOS
 - ✅ **Clang-format** - Auto-formatting (Google style, 80-column)
 - ✅ **Clang-tidy** - Comprehensive linting (bugprone, modernize, performance)
-
 - ✅ **JSCPD** - Duplicate code detection with badge generation
+
+### IDE Integration
+
+- ✅ **compile_commands.json** - Generated for IDE/clangd integration
+- ✅ **VSCode** - MCP language server configured in `.vscode/mcp.json`
+
+Each build system generates `compile_commands.json` differently:
+
+| Build System | Output Location                | Generation Method                    |
+| ------------ | ------------------------------ | ------------------------------------ |
+| **CMake**    | `build/compile_commands.json`  | `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON` |
+| **XMake**    | `build/compile_commands.json`  | `xmake project -k compile_commands`  |
+| **Bazel**    | `compile_commands.json` (root) | Hedron (Linux only)                  |
+
+> **Note**: All `compile_commands.json` files are git-ignored. The VSCode MCP language server is configured to look in `build/`.
 
 ### Testing & Coverage
 
@@ -227,19 +247,41 @@ Variables like `{{ project_name }}`, `{{ compiler }}`, `{{ build_type }}` are in
 Bazel now generates `compile_commands.json` using [Hedron's Compile Commands Extractor](https://github.com/hedronvision/bazel-compile-commands-extractor):
 
 ```bash
-# Automatically runs during build
+# Automatically runs during build (Linux only - see Known Issues)
 bazel run @hedron_compile_commands//:refresh_all
 ```
 
 This enables full clang-tidy support for Bazel builds!
 
-### 4. GitHub Actions Integration
+> **Note**: Hedron's `refresh_all` is currently skipped on macOS due to header compatibility issues with mise-managed LLVM. See [Known Issues](#bazel-hedron-on-macos).
+
+### 4. Cross-Architecture Build Support
+
+The template supports cross-architecture builds on macOS via `.build-targets.yml`:
+
+| Build System | Native Architecture | Cross-Architecture |
+| ------------ | ------------------- | ------------------ |
+| **CMake**    | ✅ Builds           | ✅ Cross-compiles  |
+| **XMake**    | ✅ Builds           | ⏭️ Skipped         |
+| **Bazel**    | ✅ Builds           | ⏭️ Skipped         |
+
+CMake uses `CMAKE_OSX_ARCHITECTURES` for cross-compilation, while XMake and Bazel only build for the native architecture due to mise LLVM limitations.
+
+```bash
+# Build for specific architecture (CMake only)
+task build:target TARGET_OS=darwin TARGET_ARCH=x86_64  # Cross-compile on arm64 Mac
+
+# Build all targets defined in .build-targets.yml
+task build:all  # Builds both aarch64 and x86_64 with CMake, native-only for others
+```
+
+### 5. GitHub Actions Integration
 
 Custom composite action in `.github/actions/setup-tools/`:
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: ./.github/actions/setup-tools  # Sets up Task, mise, caching
+- uses: ./.github/actions/setup-tools # Sets up Task, mise, caching
 ```
 
 Handles:
@@ -248,6 +290,51 @@ Handles:
 - Mise installation (cross-platform)
 - Tool caching (`~/.local/share/mise`, `~/.local/state/mise`)
 - Python venv setup with UV
+
+## Known Issues and Limitations
+
+### macOS Cross-Compilation
+
+**XMake and Bazel cannot cross-compile on macOS** when using mise-managed LLVM.
+
+| Build System | Issue                                         | Workaround                                         |
+| ------------ | --------------------------------------------- | -------------------------------------------------- |
+| **XMake**    | Uses mise LLVM which targets native arch only | Builds skip non-native architectures automatically |
+| **Bazel**    | Same limitation with mise LLVM toolchain      | Builds skip non-native architectures automatically |
+| **CMake**    | Works with `CMAKE_OSX_ARCHITECTURES`          | Full cross-compilation support                     |
+
+When running `task build:all` on an arm64 Mac:
+
+- CMake builds both `aarch64` and `x86_64` targets
+- XMake and Bazel only build `aarch64`, with a skip message for `x86_64`
+
+### Bazel Hedron on macOS
+
+**Hedron's `refresh_all` fails on macOS** with mise-managed LLVM due to missing system headers.
+
+**Error**: `mbstate_t` type not found - caused by incompatibility between mise LLVM headers and macOS SDK headers.
+
+**Current Behavior**: Hedron `refresh_all` is automatically skipped on macOS. Bazel builds still work, but `compile_commands.json` is not generated for clang-tidy integration.
+
+**Workaround**: On macOS, use CMake or XMake for clang-tidy integration, or manually configure clangd to use Bazel's output.
+
+### Mise-Only Toolchain
+
+This project is designed to use **mise-managed tools exclusively**. No system compilers or tools are used.
+
+**Why?**
+
+- **Reproducibility**: Same tool versions across all machines and CI
+- **Isolation**: No conflicts with system-installed tools
+- **Portability**: Works on any machine with mise installed
+
+**Implications:**
+
+- Some tools may behave differently than system-installed versions
+- Cross-compilation support varies by build system (see above)
+- macOS may have header compatibility issues with mise LLVM
+
+**Escape Hatch**: If you need system tools, modify `.mise.toml` to remove the LLVM configuration and update `Taskfile.yml` to use system compilers.
 
 ## Requirements
 
@@ -280,11 +367,6 @@ Handles:
 
   **Note**: Task must be run via `mise exec -- task` for isolated execution. Direct `task` commands require all tools installed locally (not recommended).
 
-  ```bash
-  brew install go-task  # macOS
-  # Or download from releases
-  ```
-
 ### Optional
 
 - **GDB** - Debugging (`mise run debug`)
@@ -298,8 +380,8 @@ Set default in `.mise.toml`:
 
 ```toml
 [env]
-CPP_BUILD_SYSTEM = "cmake"  # or "bazel" or "xmake"
-CPP_BUILD_TYPE = "Release"  # or "Debug"
+CPP_BUILD_SYSTEM = "cmake" # or "bazel" or "xmake"
+CPP_BUILD_TYPE = "Release" # or "Debug"
 CPP_COMPILER = "clang++"
 ```
 
@@ -307,7 +389,7 @@ CPP_COMPILER = "clang++"
 
 Choose in `.mise.toml`:
 
-```bash
+````bash
 mise run test --cov-tool gcovr  # Default, generates HTML
 mise run test --cov-tool lcov   # Alternative
 
@@ -327,7 +409,7 @@ std::cout << msg2 << '\n';  // "Hello, C++!"
 // String trimming with zero-copy string_view
 std::string_view trimmed = cpp_template::Trim("  spaces  ");
 std::cout << trimmed << '\n';  // "spaces"
-```
+````
 
 ## Code Characteristics
 

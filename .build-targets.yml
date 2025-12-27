@@ -1,0 +1,47 @@
+# Build targets for cross-compilation
+# Each OS runner in CI will build all architectures for that OS
+#
+# Format:
+#   os: Operating system (linux, darwin, windows)
+#   arch: Architecture identifier for output naming (x86_64, aarch64, i686)
+#   compiler: Compiler to use (gcc, clang, msvc)
+#   build_system: Build system to use (cmake, xmake, bazel)
+#
+# Note: Only targets matching the current OS will be built.
+# This ensures native compilation (no cross-compilation issues with OS-specific libraries).
+#
+# Note: macOS only supports native architecture builds with mise-managed LLVM.
+# Cross-architecture compilation (e.g., x86_64 on arm64) is not supported because
+# the standalone LLVM distribution lacks proper macOS SDK integration for non-native targets.
+# The build:target task will automatically skip non-matching architectures on macOS.
+
+targets:
+  # Linux targets (clang for both architectures)
+  - os: linux
+    arch: x86_64
+    compiler: clang
+    build_system: cmake
+  - os: linux
+    arch: i686
+    compiler: clang
+    build_system: cmake
+
+  # macOS targets (both architectures defined, but only native arch will build)
+  - os: darwin
+    arch: aarch64
+    compiler: clang
+    build_system: cmake
+  - os: darwin
+    arch: x86_64
+    compiler: clang
+    build_system: cmake
+
+  # Windows targets (clang for both architectures)
+  - os: windows
+    arch: x86_64
+    compiler: clang
+    build_system: cmake
+  - os: windows
+    arch: i686
+    compiler: clang
+    build_system: cmake

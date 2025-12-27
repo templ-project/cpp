@@ -1,11 +1,6 @@
 [settings]
-# TODO: need experimental mode to support lock file -> can be solved using mise.local.toml
-# TRICKY:
-# This one breaks tools.http:llvm/llvm-project installation due to mise bug probably
-# experimental = true
-# This one I needs to be tested; but I haven't seen it working last time
+experimental = true
 lockfile = true
-# TRICKYend
 
 ############################################################################
 # Tools Configuration                                                      #
@@ -17,7 +12,6 @@ lockfile = true
 # Compilers
 # ==========================================================================
 
-# TODO: Github Backend still has issues with asset_pattern matching for LLVM releases -> mise bug
 # https://github.com/llvm/llvm-project/releases
 #
 [tools."http:llvm/llvm-project"]
@@ -29,7 +23,7 @@ macos-arm64 = { url = "https://github.com/llvm/llvm-project/releases/download/ll
 windows-x64 = { url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-{version}/clang+llvm-{version}-x86_64-pc-windows-msvc.tar.xz" }
 
 # ==========================================================================
-# Build Tools
+# Build Tools (alphabetically sorted)
 # ==========================================================================
 
 # https://github.com/bazelbuild/bazel
@@ -48,7 +42,6 @@ windows-x64 = { asset_pattern = "bazel-*-windows-x86_64.exe", bin = "bazel.exe" 
 [tools."github:Kitware/CMake"]
 version = "latest"
 
-# TODO: Need a Linux distro to test this
 [tools."github:Kitware/CMake".platforms]
 linux-x64 = { asset_pattern = "cmake-*-linux-x86_64.tar.gz" }
 macos-arm64 = { asset_pattern = "cmake-*-macos-universal.tar.gz", bin_path = "CMake.app/Contents/bin" }
@@ -57,34 +50,34 @@ windows-x64 = { asset_pattern = "cmake-*-windows-x86_64.zip" }
 # https://github.com/xmake-io/xmake/releases
 #
 [tools."github:xmake-io/xmake"]
-# TODO: Latest (3.0.4) has issues with some lua modules -> pin to 3.0.3 for now
 version = "3.0.3"
 bin = "xmake"
 
-# TODO: Need a Linux distro to test this
 [tools."github:xmake-io/xmake".platforms]
 linux-x64 = { asset_pattern = "xmake-bundle-v*.linux.x86_64" }
 macos-arm64 = { asset_pattern = "xmake-bundle-v*.macos.arm64" }
 windows-x64 = { asset_pattern = "xmake-bundle-v*.win64.exe", bin = "xmake.exe" }
 
 # ==========================================================================
-# Other Tools
+# Languages & Runtimes (alphabetically sorted)
 # ==========================================================================
 
-# Doxygen - Documentation generator
-# Note: Windows users should install via chocolatey, winget, or scoop instead
-# - choco install doxygen.install
-# - winget install doxygen.doxygen
-# - scoop install doxygen
-# Linux/macOS can use mise or system package manager
+# Node.js for jscpd & eslint
 #
-# [tools."github:doxygen/doxygen"]
-# version = "latest"
+[tools.node]
+version = "22"
+
+# Python and package manager (for linting helpers)
 #
-# [tools."github:doxygen/doxygen".platforms]
-# linux-x64 = { asset_pattern = "doxygen-*.linux.bin.tar.gz" }
-# macos-arm64 = { asset_pattern = "Doxygen-*.dmg" }
-# # Windows: Installer not suitable for mise, use chocolatey/winget/scoop instead
+[tools.python]
+version = "3.11"
+
+[tools.uv]
+version = "latest"
+
+# ==========================================================================
+# CLI Tools (alphabetically sorted by tool name)
+# ==========================================================================
 
 # https://github.com/koalaman/shellcheck/releases
 # e.g. https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.x86_64.tar.xz
@@ -99,6 +92,8 @@ windows-x64 = { asset_pattern = "shellcheck-*.zip" }
 
 # https://github.com/PowerShell/PowerShell/releases
 # e.g. https://github.com/PowerShell/PowerShell/releases/download/v7.5.4/powershell-7.5.4-osx-arm64.tar.gz
+# NOTE: mise extraction may lose the Modules/ folder structure.
+#       The postinstall hook runs .scripts/fix-mise-pwsh to re-extract properly.
 #
 [tools."github:PowerShell/PowerShell"]
 version = "latest"
@@ -108,31 +103,12 @@ linux-x64 = { asset_pattern = "powershell-*-linux-x64.tar.gz" }
 macos-arm64 = { asset_pattern = "powershell-*-osx-arm64.tar.gz" }
 windows-x64 = { asset_pattern = "PowerShell-*-win-x64.zip" }
 
-# Node.js for jscpd & eslint
-#
-[tools.node]
-version = "latest"
-
-# Python and package manager
-#
-[tools.python]
-version = "3.11" # Will install 3.11 or above based on availability
-[tools.uv]
-version = "latest"
-
-# TODO: Need to install manually; so far no registry nor backends support
-# # Debugger
-# [tools.gdb]
-# version = "latest"
-
-# TODO: Need to install manually; so far no registry nor backends support
-# Memory profiler (Linux/macOS only)
-# [tools.valgrind]
-# version = "latest"
-
 ############################################################################
-# Hooks                                                    #
+# Hooks                                                                    #
 ############################################################################
 
 [hooks]
-postinstall = "{% if os() != 'windows' %}chmod -R 755 $(mise bin-paths github:PowerShell/PowerShell)/pwsh; echo 'chown -R 755 pwsh'{% endif %}"
+# Fix PowerShell installation (mise extraction loses Modules/ folder)
+# Windows: use powershell.exe (Windows PowerShell 5.1, always available) to run fix
+# Linux/macOS: run bash script
+postinstall = "{% if os() == 'windows' %}powershell.exe -NoProfile -ExecutionPolicy Bypass -File .scripts/fix-mise-pwsh.ps1{% else %}bash .scripts/fix-mise-pwsh.sh 2>/dev/null{% endif %}"
