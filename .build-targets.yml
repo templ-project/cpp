@@ -1,47 +1,34 @@
-# Build targets for cross-compilation
-# Each OS runner in CI will build all architectures for that OS
+# Build targets for native compilation on GitHub runners
 #
 # Format:
 #   os: Operating system (linux, darwin, windows)
-#   arch: Architecture identifier for output naming (x86_64, aarch64, i686)
-#   compiler: Compiler to use (gcc, clang, msvc)
-#   build_system: Build system to use (cmake, xmake, bazel)
+#   arch: Architecture matching the GitHub runner (x86_64, aarch64)
+#   compiler: Compiler to use (clang)
+#   build_system: Build system to use (cmake)
 #
-# Note: Only targets matching the current OS will be built.
-# This ensures native compilation (no cross-compilation issues with OS-specific libraries).
+# Note: Each target is built natively on its corresponding GitHub runner.
+# Cross-compilation is not supported due to OS-specific library dependencies.
 #
-# Note: macOS only supports native architecture builds with mise-managed LLVM.
-# Cross-architecture compilation (e.g., x86_64 on arm64) is not supported because
-# the standalone LLVM distribution lacks proper macOS SDK integration for non-native targets.
-# The build:target task will automatically skip non-matching architectures on macOS.
+# GitHub runner architectures:
+#   - Linux: x86_64 only (ubuntu-latest)
+#   - macOS: x86_64 (macos-13) and aarch64 (macos-latest/macos-14)
+#   - Windows: x86_64 only (windows-latest)
 
 targets:
-  # Linux targets (clang for both architectures)
+  # Linux x86_64 (ubuntu-latest runner)
   - os: linux
     arch: x86_64
     compiler: clang
     build_system: cmake
-  - os: linux
-    arch: i686
-    compiler: clang
-    build_system: cmake
 
-  # macOS targets (both architectures defined, but only native arch will build)
+  # macOS aarch64 (macos-latest / macos-14 runner - Apple Silicon)
   - os: darwin
     arch: aarch64
     compiler: clang
     build_system: cmake
-  - os: darwin
-    arch: x86_64
-    compiler: clang
-    build_system: cmake
 
-  # Windows targets (clang for both architectures)
+  # Windows x86_64 (windows-latest runner)
   - os: windows
     arch: x86_64
-    compiler: clang
-    build_system: cmake
-  - os: windows
-    arch: i686
     compiler: clang
     build_system: cmake

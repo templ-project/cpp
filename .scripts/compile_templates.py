@@ -126,9 +126,9 @@ def main():
     )
     parser.add_argument(
         "--arch",
-        choices=["x86_64", "aarch64", "i686", "arm64", ""],
+        choices=["x86_64", "aarch64", "arm64", ""],
         default="",
-        help="Target architecture (x86_64, aarch64/arm64, i686)",
+        help="Target architecture (x86_64, aarch64/arm64)",
     )
 
     args = parser.parse_args()

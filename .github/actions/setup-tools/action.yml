@@ -1,15 +1,19 @@
-name: "Setup Development Tools"
-description: "Install Task, mise, and project tools with caching"
+name: 'Setup Development Tools'
+description: 'Install Task, mise, and project tools with caching'
 inputs:
   github-token:
     description: Github Token to be passed to the installer tools
     required: true
   refresh-deps:
-    description: "Force refresh dependencies by bypassing cache"
+    description: 'Force refresh dependencies by bypassing cache'
     required: false
-    default: "false"
+    default: 'false'
+  cache-version:
+    description: 'Cache version suffix - increment to invalidate all caches'
+    required: false
+    default: '001'
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     # ==========================================================================
     # Task
@@ -47,9 +51,9 @@ runs:
       if: runner.os != 'Windows'
       uses: actions/cache/restore@v4
       with:
-        key: mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}
+        key: mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}-${{ inputs.cache-version }}
         restore-keys: |
-          mise-downloads-${{ runner.os }}-${{ runner.arch }}-
+          mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache-version }}-
         path: |
           ~/.local/share/mise/downloads
 
@@ -58,9 +62,9 @@ runs:
       if: runner.os == 'Windows'
       uses: actions/cache/restore@v4
       with:
-        key: mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}
+        key: mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}-${{ inputs.cache-version }}
         restore-keys: |
-          mise-downloads-${{ runner.os }}-${{ runner.arch }}-
+          mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache-version }}-
         path: |
           ~/AppData/Local/mise/downloads
 
@@ -73,9 +77,9 @@ runs:
       if: runner.os != 'Windows'
       uses: actions/cache/restore@v4
       with:
-        key: mise-installs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}
+        key: mise-installs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}-${{ inputs.cache-version }}
         restore-keys: |
-          mise-installs-${{ runner.os }}-${{ runner.arch }}-
+          mise-installs-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache-version }}-
         path: |
           ~/.local/share/mise/installs/github-*
           ~/.local/share/mise/installs/node
@@ -88,9 +92,9 @@ runs:
       if: runner.os == 'Windows'
       uses: actions/cache/restore@v4
       with:
-        key: mise-installs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}
+        key: mise-installs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}-${{ inputs.cache-version }}
         restore-keys: |
-          mise-installs-${{ runner.os }}-${{ runner.arch }}-
+          mise-installs-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache-version }}-
         path: |
           ~/AppData/Local/mise/installs/github-*
           ~/AppData/Local/mise/installs/node
@@ -105,9 +109,9 @@ runs:
       id: venv-cache
       uses: actions/cache/restore@v4
       with:
-        key: venv-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('uv.lock') }}
+        key: venv-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('uv.lock') }}-${{ inputs.cache-version }}
         restore-keys: |
-          venv-${{ runner.os }}-${{ runner.arch }}-
+          venv-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache-version }}-
         path: .venv
 
     # ==========================================================================
@@ -117,9 +121,9 @@ runs:
       id: node-cache
       uses: actions/cache/restore@v4
       with:
-        key: node-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+        key: node-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-${{ inputs.cache-version }}
         restore-keys: |
-          node-${{ runner.os }}-${{ runner.arch }}-
+          node-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache-version }}-
         path: node_modules
 
     # ==========================================================================
@@ -151,8 +155,8 @@ runs:
         GITHUB_API_TOKEN: ${{ inputs.github-token }}
         MISE_GITHUB_TOKEN: ${{ inputs.github-token }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        MISE_GITHUB_GITHUB_ATTESTATIONS: "0"
-        MISE_GITHUB_SLSA: "0"
+        MISE_GITHUB_GITHUB_ATTESTATIONS: '0'
+        MISE_GITHUB_SLSA: '0'
         MISE_HTTP_TIMEOUT: 600
         PYTHONIOENCODING: utf-8
       run: |
@@ -207,7 +211,7 @@ runs:
         steps.mise-downloads-cache-unix.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
-        key: mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}
+        key: mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}-${{ inputs.cache-version }}
         path: |
           ~/.local/share/mise/downloads
 
@@ -217,7 +221,7 @@ runs:
         steps.mise-downloads-cache-windows.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
-        key: mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}
+        key: mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}-${{ inputs.cache-version }}
         path: |
           ~/AppData/Local/mise/downloads
 
@@ -227,7 +231,7 @@ runs:
         steps.mise-installs-cache-unix.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
-        key: mise-installs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}
+        key: mise-installs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}-${{ inputs.cache-version }}
         path: |
           ~/.local/share/mise/installs/github-*
           ~/.local/share/mise/installs/node
@@ -241,7 +245,7 @@ runs:
         steps.mise-installs-cache-windows.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
-        key: mise-installs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}
+        key: mise-installs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.lock') }}-${{ inputs.cache-version }}
         path: |
           ~/AppData/Local/mise/installs/github-*
           ~/AppData/Local/mise/installs/node
@@ -253,12 +257,12 @@ runs:
       if: steps.venv-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
-        key: venv-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('uv.lock') }}
+        key: venv-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('uv.lock') }}-${{ inputs.cache-version }}
         path: .venv
 
     - name: Save Node modules cache
       if: steps.node-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
-        key: node-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+        key: node-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-${{ inputs.cache-version }}
         path: node_modules
