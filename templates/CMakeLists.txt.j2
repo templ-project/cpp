@@ -73,33 +73,46 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Base flags for Clang (warnings but not errors for third-party code compatibility)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 
+    # Track if we're using non-system clang (e.g., mise-managed LLVM)
+    set(USING_NON_SYSTEM_CLANG FALSE)
+
     # Use libc++ on macOS
     if(APPLE)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 
-        # For non-system clang (e.g., mise-managed LLVM), we need to explicitly add
-        # the library path and link libraries since the LLVM distribution includes its own libc++
+        # For non-system clang (e.g., mise-managed LLVM), detect it for other settings
         get_filename_component(CLANG_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
         get_filename_component(CLANG_ROOT_DIR "${CLANG_BIN_DIR}" DIRECTORY)
         set(CLANG_LIB_DIR "${CLANG_ROOT_DIR}/lib")
 
         if(EXISTS "${CLANG_LIB_DIR}/libc++.dylib")
-            # Use the libc++ from the clang installation - must explicitly link both libraries
-            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${CLANG_LIB_DIR} -lc++ -lc++abi -Wl,-rpath,${CLANG_LIB_DIR}")
-        else()
-            # Fall back to system libc++
-            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lc++ -lc++abi")
+            set(USING_NON_SYSTEM_CLANG TRUE)
+            # NOTE: We intentionally use system libc++ instead of LLVM's bundled libc++
+            # LLVM 20+ has Typed Memory Operations (TMO) enabled in their libc++ build,
+            # which causes "typed operator new being invoked before its static initializer"
+            # errors with GoogleTest and other libraries that use static initializers.
+            # Using system libc++ avoids this issue while still allowing us to use
+            # the mise-managed clang compiler for consistency.
+            message(STATUS "Using system libc++ with non-system clang (avoiding LLVM 20+ TMO issues)")
         endif()
+
+        # Link against system libc++ (works with both system and non-system clang)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lc++ -lc++abi")
     endif()
 
-    # Debug flags with sanitizers (works on all platforms with Clang)
+    # Debug flags with sanitizers
     set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
     if(WIN32)
         # Windows: Skip sanitizers for now due to runtime library dependencies
         # TODO: Enable when ASAN runtime libraries are properly configured
         # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
+    elseif(APPLE AND USING_NON_SYSTEM_CLANG)
+        # macOS with non-system clang (e.g., mise-managed LLVM): Skip sanitizers
+        # ASAN has conflicts between LLVM's libc++ and system libraries, causing
+        # "attempting free on address which was not malloc()-ed" errors
+        message(STATUS "Sanitizers disabled on macOS with non-system clang (libc++ conflict)")
     else()
-        # Linux/macOS: enable both address and undefined behavior sanitizers
+        # Linux/macOS with system clang: enable both address and undefined behavior sanitizers
         set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address,undefined")
     endif()
 

@@ -1,15 +1,15 @@
-name: "Setup Development Tools"
-description: "Install Task, mise, and project tools with caching"
+name: 'Setup Development Tools'
+description: 'Install Task, mise, and project tools with caching'
 inputs:
   github-token:
     description: Github Token to be passed to the installer tools
     required: true
   refresh-deps:
-    description: "Force refresh dependencies by bypassing cache"
+    description: 'Force refresh dependencies by bypassing cache'
     required: false
-    default: "false"
+    default: 'false'
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     # ==========================================================================
     # Task
@@ -151,8 +151,8 @@ runs:
         GITHUB_API_TOKEN: ${{ inputs.github-token }}
         MISE_GITHUB_TOKEN: ${{ inputs.github-token }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        MISE_GITHUB_GITHUB_ATTESTATIONS: "0"
-        MISE_GITHUB_SLSA: "0"
+        MISE_GITHUB_GITHUB_ATTESTATIONS: '0'
+        MISE_GITHUB_SLSA: '0'
         MISE_HTTP_TIMEOUT: 600
         PYTHONIOENCODING: utf-8
       run: |
