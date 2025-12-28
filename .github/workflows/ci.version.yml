@@ -38,6 +38,7 @@ jobs:
     with:
       runs-on: ${{ inputs.runs-on }}
       jobs: lint,test
+    secrets: inherit
 
   version:
     runs-on: ${{ inputs.runs-on }}

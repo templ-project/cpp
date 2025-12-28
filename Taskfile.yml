@@ -1,17 +1,17 @@
-version: '3'
+version: "3"
 
 vars:
   # mise dependent
-  __TF_MISE_E: 'mise trust; mise exec --'
-  __TF_MISE_E_PWSH: 'mise trust; mise exec -- pwsh -NoProfile -ExecutionPolicy Bypass -Command'
-  __TF_MISE_E_PWSH_FILE: 'mise trust; mise exec -- pwsh -NoProfile -ExecutionPolicy Bypass -File'
-  __TF_MISE_E_UV_RUN: 'mise trust; mise exec -- uv run'
+  __TF_MISE_E: "mise trust; mise exec --"
+  __TF_MISE_E_PWSH: "mise trust; mise exec -- pwsh -NoProfile -ExecutionPolicy Bypass -Command"
+  __TF_MISE_E_PWSH_FILE: "mise trust; mise exec -- pwsh -NoProfile -ExecutionPolicy Bypass -File"
+  __TF_MISE_E_UV_RUN: "mise trust; mise exec -- uv run"
   # os dependent
   __TF_COMMAND_WRAPPER:
     sh: |
       echo '{{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command{{else}}bash -c{{end}}'
-  __TF_HEADER_LINE: '=============================================================='
-  __TF_SEP: ' '
+  __TF_HEADER_LINE: "=============================================================="
+  __TF_SEP: " "
   __TF_VAR_PREFIX:
     sh: |
       echo "{{if eq OS "windows"}}\${{else}}{{end}}"
@@ -33,7 +33,7 @@ vars:
   CPP_BUILD_TARGETS_RAW:
     sh: cat .build-targets.yml
   CPP_BUILD_TARGETS:
-    ref: '(fromYaml .CPP_BUILD_TARGETS_RAW).targets'
+    ref: "(fromYaml .CPP_BUILD_TARGETS_RAW).targets"
 
 env:
   BAZEL_VC:
@@ -68,7 +68,7 @@ tasks:
               }}if ($BashPath) { & $BashPath -c "env | sort" }{{ .__TF_SEP
               }}else { Get-ChildItem "Env:" | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Value)" } }'
         platforms: [windows]
-    desc: 'Print current build environment variables'
+    desc: "Print current build environment variables"
     summary: |
       Print current build environment variables
 
@@ -94,13 +94,13 @@ tasks:
             exit 1
           {{end}}{{end}}
       - task: print:env
-      - task: 'build:{{.CPP_BUILD_SYSTEM}}'
+      - task: "build:{{.CPP_BUILD_SYSTEM}}"
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
-          CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
-    desc: 'Build project (system: {{.CPP_BUILD_SYSTEM}}, type: {{.CPP_BUILD_TYPE}})'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
+          CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+    desc: "Build project (system: {{.CPP_BUILD_SYSTEM}}, type: {{.CPP_BUILD_TYPE}})"
     sources:
       - include/**/*.h
       - include/**/*.hpp
@@ -135,9 +135,9 @@ tasks:
           var: CPP_BUILD_TARGETS
         task: build:target
         vars:
-          TARGET_ARCH: '{{.ITEM.arch}}'
-          TARGET_OS: '{{.ITEM.os}}'
-    desc: 'Build all architecture targets for current OS'
+          TARGET_ARCH: "{{.ITEM.arch}}"
+          TARGET_OS: "{{.ITEM.os}}"
+    desc: "Build all architecture targets for current OS"
     summary: |
       Build all architecture targets for the current OS
 
@@ -166,20 +166,20 @@ tasks:
           echo "{{.__TF_HEADER_LINE}}"
           echo "Building {{.CPP_PROJECT_NAME}} for {{.TARGET_OS}}/{{.TARGET_ARCH}} in {{.CPP_BUILD_TYPE}} mode"
           echo "{{.__TF_HEADER_LINE}}"
-      - task: 'build:target:impl'
+      - task: "build:target:impl"
         vars:
-          ARCH_BUILD_DIR: '{{.ARCH_BUILD_DIR}}'
-          CPP_BUILD_DIR: '{{.ARCH_BUILD_DIR}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
-          CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
-          EXE_EXT: '{{.EXE_EXT}}'
-          NORMALIZED_HOST_ARCH: '{{.NORMALIZED_HOST_ARCH}}'
-          OUTPUT_NAME: '{{.OUTPUT_NAME}}'
-          TARGET_ARCH: '{{.TARGET_ARCH}}'
-          TARGET_OS: '{{.TARGET_OS}}'
-    desc: 'Build for a specific OS/ARCH target'
+          ARCH_BUILD_DIR: "{{.ARCH_BUILD_DIR}}"
+          CPP_BUILD_DIR: "{{.ARCH_BUILD_DIR}}"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
+          CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+          EXE_EXT: "{{.EXE_EXT}}"
+          NORMALIZED_HOST_ARCH: "{{.NORMALIZED_HOST_ARCH}}"
+          OUTPUT_NAME: "{{.OUTPUT_NAME}}"
+          TARGET_ARCH: "{{.TARGET_ARCH}}"
+          TARGET_OS: "{{.TARGET_OS}}"
+    desc: "Build for a specific OS/ARCH target"
     requires:
       vars: [TARGET_ARCH, TARGET_OS]
     status:
@@ -202,24 +202,24 @@ tasks:
 
       Note: This task is typically called by build:all, not directly.
     vars:
-      ARCH_BUILD_DIR: 'build-{{.TARGET_ARCH}}'
+      ARCH_BUILD_DIR: "build-{{.TARGET_ARCH}}"
       EXE_EXT: '{{if eq .TARGET_OS "windows"}}.exe{{end}}'
       # Normalize host arch: Taskfile uses arm64/amd64, our targets use aarch64/x86_64
       NORMALIZED_HOST_ARCH: '{{if eq ARCH "arm64"}}aarch64{{else if eq ARCH "amd64"}}x86_64{{else}}{{ARCH}}{{end}}'
-      OUTPUT_NAME: '{{.CPP_PROJECT_NAME}}_{{.TARGET_OS}}_{{.TARGET_ARCH}}{{.EXE_EXT}}'
+      OUTPUT_NAME: "{{.CPP_PROJECT_NAME}}_{{.TARGET_OS}}_{{.TARGET_ARCH}}{{.EXE_EXT}}"
 
   build:target:impl:
     cmds:
-      - task: 'build:target:clean'
+      - task: "build:target:clean"
         vars:
-          ARCH_BUILD_DIR: '{{.ARCH_BUILD_DIR}}'
-      - task: 'build:{{.CPP_BUILD_SYSTEM}}'
+          ARCH_BUILD_DIR: "{{.ARCH_BUILD_DIR}}"
+      - task: "build:{{.CPP_BUILD_SYSTEM}}"
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
-          CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
-          TARGET_ARCH: '{{.TARGET_ARCH}}'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
+          CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+          TARGET_ARCH: "{{.TARGET_ARCH}}"
       - cmd: |
           mkdir -p build
           # Find and copy the binary to build/ with proper naming
@@ -255,7 +255,7 @@ tasks:
           # Clean build system caches/configs that may have wrong architecture
           rm -rf .xmake {{.ARCH_BUILD_DIR}}
           {{.__TF_MISE_E}} bazel clean 2>/dev/null || true
-    desc: 'Clean build artifacts for a specific architecture target'
+    desc: "Clean build artifacts for a specific architecture target"
     internal: true
     requires:
       vars: [ARCH_BUILD_DIR]
@@ -268,7 +268,7 @@ tasks:
         platforms: [windows]
     deps:
       - build:all
-    desc: 'Create distribution archives for all builds in build/'
+    desc: "Create distribution archives for all builds in build/"
     sources:
       - build/*
     summary: |
@@ -297,12 +297,12 @@ tasks:
         {{end}}
     deps:
       - deps:sync:uv
-    desc: 'Build project using Bazel'
+    desc: "Build project using Bazel"
     env:
-      CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
-      CPP_COMPILER: '{{.CPP_COMPILER}}'
-      CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+      CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+      CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
+      CPP_COMPILER: "{{.CPP_COMPILER}}"
+      CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
     generates:
       - bazel-bin/{{.CPP_PROJECT_NAME}}
     sources:
@@ -335,15 +335,15 @@ tasks:
             {{.CMAKE_COMPILER_FLAG}} \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         {{.__TF_MISE_E_UV_RUN}} cmake --build "{{.CPP_BUILD_DIR}}" --parallel
-    desc: 'Build project using CMake'
+    desc: "Build project using CMake"
     env:
-      CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
-      CPP_COMPILER: '{{.CPP_COMPILER}}'
-      CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+      CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+      CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
+      CPP_COMPILER: "{{.CPP_COMPILER}}"
+      CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
     generates:
-      - '{{.CPP_BUILD_DIR}}/CMakeCache.txt'
-      - '{{.CPP_BUILD_DIR}}/compile_commands.json'
+      - "{{.CPP_BUILD_DIR}}/CMakeCache.txt"
+      - "{{.CPP_BUILD_DIR}}/compile_commands.json"
     sources:
       - CMakeLists.txt
       - tests/CMakeLists.txt
@@ -374,15 +374,15 @@ tasks:
         {{.__TF_MISE_E}} xmake f -m {{.XMAKE_MODE}}{{if .XMAKE_ARCH}} -a {{.XMAKE_ARCH}}{{end}} -y
         {{.__TF_MISE_E}} xmake build -y
         {{.__TF_MISE_E}} xmake project -k compile_commands "{{.CPP_BUILD_DIR}}"
-    desc: 'Build project using XMake'
+    desc: "Build project using XMake"
     env:
-      '{{if and (eq OS "windows") (eq .CPP_COMPILER "clang++")}}CXXFLAGS': '-Wno-error -Wno-unknown-warning-option'
-      CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-      CPP_BUILD_TYPE: '{{.CPP_BUILD_TYPE}}'
-      CPP_COMPILER: '{{.CPP_COMPILER}}'
-      CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
+      '{{if and (eq OS "windows") (eq .CPP_COMPILER "clang++")}}CXXFLAGS': "-Wno-error -Wno-unknown-warning-option"
+      CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+      CPP_BUILD_TYPE: "{{.CPP_BUILD_TYPE}}"
+      CPP_COMPILER: "{{.CPP_COMPILER}}"
+      CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
     generates:
-      - '{{.CPP_BUILD_DIR}}/compile_commands.json'
+      - "{{.CPP_BUILD_DIR}}/compile_commands.json"
       - .xmake/cache/config
     sources:
       - xmake.lua
@@ -442,7 +442,7 @@ tasks:
           rm -rf ~/AppData/Local/Temp/.xmake*
           rm -rf ~/AppData/Local/Temp/*.il
         platforms: [windows]
-    desc: 'Clean all build artifacts'
+    desc: "Clean all build artifacts"
     summary: |
       Clean all build artifacts
 
@@ -469,7 +469,7 @@ tasks:
       - task: format:prettier
       - task: format:ruff
       - cmd: echo "✅ Code format completed"
-    desc: 'Format code and fix issues'
+    desc: "Format code and fix issues"
     summary: |
       Format all code in the project
 
@@ -485,7 +485,7 @@ tasks:
     cmds:
       - |
         {{.__TF_MISE_E}} python .scripts/format_clang.py --fix
-    desc: 'Format C++ code using clang-format'
+    desc: "Format C++ code using clang-format"
     silent: true
     summary: |
       Format C++ code using clang-format
@@ -500,8 +500,8 @@ tasks:
     cmds:
       - task: prettier
         vars:
-          CLI_ARGS: '--write .'
-    desc: 'Format code using Prettier'
+          CLI_ARGS: "--write ."
+    desc: "Format code using Prettier"
     silent: true
     summary: |
       Format configuration files using Prettier
@@ -519,7 +519,7 @@ tasks:
       - echo "- ✅ prettier format completed"
     silent: true
     sources:
-      - '**/*.{json,md,toml,yaml,yml}'
+      - "**/*.{json,md,toml,yaml,yml}"
     summary: |
       Run Prettier with custom arguments
 
@@ -534,9 +534,9 @@ tasks:
     cmds:
       - task: ruff
         vars:
-          CLI_ARGS: 'format .'
+          CLI_ARGS: "format ."
       - echo "- ✅ ruff format completed"
-    desc: 'Format Python code using Ruff'
+    desc: "Format Python code using Ruff"
     silent: true
     summary: |
       Format Python code using Ruff
@@ -553,10 +553,10 @@ tasks:
     cmds:
       - |
         {{.__TF_MISE_E_UV_RUN}} ruff {{.CLI_ARGS}}
-    desc: 'Run Ruff'
+    desc: "Run Ruff"
     silent: true
     sources:
-      - '**/*.py'
+      - "**/*.py"
     summary: |
       Run Ruff with custom arguments
 
@@ -572,7 +572,7 @@ tasks:
       - task: format:check:prettier
       - task: format:check:ruff
       - cmd: echo "✅ Code format check completed"
-    desc: 'Check code formatting without fixing'
+    desc: "Check code formatting without fixing"
     summary: |
       Check code formatting without making changes
 
@@ -586,7 +586,7 @@ tasks:
     cmds:
       - |
         {{.__TF_MISE_E}} python .scripts/format_clang.py --check
-    desc: 'Check C++ code formatting using clang-format'
+    desc: "Check C++ code formatting using clang-format"
     silent: true
     summary: |
       Check C++ code formatting without fixing
@@ -601,9 +601,9 @@ tasks:
     cmds:
       - task: prettier
         vars:
-          CLI_ARGS: '--check .'
+          CLI_ARGS: "--check ."
       - echo "- ✅ prettier format check completed"
-    desc: 'Check code formatting using Prettier'
+    desc: "Check code formatting using Prettier"
     silent: true
     summary: |
       Check Prettier formatting without fixing
@@ -619,9 +619,9 @@ tasks:
     cmds:
       - task: ruff
         vars:
-          CLI_ARGS: 'format --check .'
+          CLI_ARGS: "format --check ."
       - echo "- ✅ ruff format check completed"
-    desc: 'Check Python code formatting using Ruff'
+    desc: "Check Python code formatting using Ruff"
     silent: true
     summary: |
       Check Python code formatting without fixing
@@ -641,7 +641,7 @@ tasks:
       - task: lint:pwshlint
       - task: lint:shlint
       - cmd: echo "✅ Linting completed"
-    desc: 'Run linter and fix issues'
+    desc: "Run linter and fix issues"
     summary: |
       Run all linters and fix issues
 
@@ -663,9 +663,9 @@ tasks:
     deps:
       - task: build
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-    desc: 'Lint C++ code and fix issues'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+    desc: "Lint C++ code and fix issues"
     silent: true
     summary: |
       Lint C++ code using clang-tidy
@@ -680,9 +680,9 @@ tasks:
     cmds:
       - task: eslint
         vars:
-          CLI_ARGS: '--fix .'
+          CLI_ARGS: "--fix ."
       - echo "- ✅ eslint lint completed"
-    desc: 'Lint code using ESLint'
+    desc: "Lint code using ESLint"
     silent: true
     summary: |
       Lint configuration files using ESLint
@@ -697,10 +697,10 @@ tasks:
     cmds:
       - |
         {{.__TF_MISE_E}} npx eslint {{.CLI_ARGS}}
-    desc: 'Run ESLint'
+    desc: "Run ESLint"
     silent: true
     sources:
-      - '**/*.{json,md,toml,yaml,yml}'
+      - "**/*.{json,md,toml,yaml,yml}"
     summary: |
       Run ESLint with custom arguments
 
@@ -715,9 +715,9 @@ tasks:
     cmds:
       - task: pylint
         vars:
-          CLI_ARGS: '.'
+          CLI_ARGS: "."
       - echo "- ✅ pylint lint completed"
-    desc: 'Lint Python scripts using pylint'
+    desc: "Lint Python scripts using pylint"
     silent: true
     summary: |
       Lint Python code using Pylint
@@ -733,10 +733,10 @@ tasks:
     cmds:
       - |
         {{.__TF_MISE_E_UV_RUN}} pylint {{.CLI_ARGS}}
-    desc: 'Run pylint'
+    desc: "Run pylint"
     silent: true
     sources:
-      - '**/*.py'
+      - "**/*.py"
     summary: |
       Run Pylint with custom arguments
 
@@ -750,9 +750,9 @@ tasks:
     cmds:
       - task: pwshlint_py
         vars:
-          CLI_ARGS: '--fix'
+          CLI_ARGS: "--fix"
       - echo "- ✅ pwsh lint completed"
-    desc: 'Lint PowerShell scripts using PSScriptAnalyzer'
+    desc: "Lint PowerShell scripts using PSScriptAnalyzer"
     silent: true
     summary: |
       Lint PowerShell scripts using PSScriptAnalyzer
@@ -768,10 +768,10 @@ tasks:
     cmds:
       - |
         {{.__TF_MISE_E_UV_RUN}} .scripts/pwshlint.py {{.CLI_ARGS}}
-    desc: 'Run PSScriptAnalyzer'
+    desc: "Run PSScriptAnalyzer"
     silent: true
     sources:
-      - '**/*.ps1'
+      - "**/*.ps1"
     summary: |
       Run PSScriptAnalyzer with custom arguments
 
@@ -786,9 +786,9 @@ tasks:
     cmds:
       - task: shlint_py
         vars:
-          CLI_ARGS: '--fix'
+          CLI_ARGS: "--fix"
       - echo "- ✅ bash lint completed"
-    desc: 'Lint shell scripts using ShellCheck'
+    desc: "Lint shell scripts using ShellCheck"
     silent: true
     summary: |
       Lint shell scripts using ShellCheck
@@ -806,10 +806,10 @@ tasks:
       - cmd: |
           {{.__TF_MISE_E}} python .scripts/shlint.py {{.CLI_ARGS}}
         platforms: [darwin, linux, windows]
-    desc: 'Run ShellCheck'
+    desc: "Run ShellCheck"
     silent: true
     sources:
-      - '**/*.sh'
+      - "**/*.sh"
     summary: |
       Run ShellCheck with custom arguments
 
@@ -827,7 +827,7 @@ tasks:
       - task: lint:check:pwshlint
       - task: lint:check:shlint
       - cmd: echo "✅ Linting check completed"
-    desc: 'Run linter without fixing'
+    desc: "Run linter without fixing"
     summary: |
       Run all linters without fixing issues
 
@@ -845,9 +845,9 @@ tasks:
     deps:
       - task: build
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-    desc: 'Check C++ code using clang-tidy'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+    desc: "Check C++ code using clang-tidy"
     silent: true
     summary: |
       Check C++ code using clang-tidy without fixing
@@ -861,9 +861,9 @@ tasks:
     cmds:
       - task: eslint
         vars:
-          CLI_ARGS: '.'
+          CLI_ARGS: "."
       - echo "- ✅ eslint lint check completed"
-    desc: 'Check config files using eslint'
+    desc: "Check config files using eslint"
     silent: true
     summary: |
       Check ESLint without fixing
@@ -878,7 +878,7 @@ tasks:
     cmds:
       - task: lint:pylint
       - echo "- ✅ pylint lint check completed"
-    desc: 'Check Python scripts using pylint'
+    desc: "Check Python scripts using pylint"
     silent: true
     summary: |
       Check Python code using Pylint without fixing
@@ -894,7 +894,7 @@ tasks:
     cmds:
       - task: pwshlint_py
       - echo "- ✅ pwsh lint completed"
-    desc: 'Check PowerShell scripts using PSScriptAnalyzer'
+    desc: "Check PowerShell scripts using PSScriptAnalyzer"
     silent: true
     summary: |
       Check PowerShell scripts without fixing
@@ -910,7 +910,7 @@ tasks:
     cmds:
       - task: shlint_py
       - echo "- ✅ bash lint completed"
-    desc: 'Check shell scripts using ShellCheck'
+    desc: "Check shell scripts using ShellCheck"
     silent: true
     summary: |
       Check shell scripts without fixing
@@ -925,7 +925,7 @@ tasks:
     cmds:
       - |
         {{.__TF_MISE_E}} npx -y lint-staged
-    desc: 'Run linter on staged files and fix issues'
+    desc: "Run linter on staged files and fix issues"
     silent: true
     summary: |
       Run linters on git staged files only
@@ -941,7 +941,7 @@ tasks:
       - |
         {{.__TF_MISE_E}} npm run duplicate-check
       - git add .jscpd/jscpd-badge.svg 2>/dev/null || true
-    desc: 'Check for duplicate code using jscpd'
+    desc: "Check for duplicate code using jscpd"
     summary: |
       Check for duplicate code using jscpd
 
@@ -959,17 +959,17 @@ tasks:
     cmds:
       - task: test:{{.CPP_BUILD_SYSTEM}}
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
     deps:
       - task: build
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
           CPP_BUILD_TYPE: Debug
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
-    desc: 'Run tests (system: {{.CPP_BUILD_SYSTEM}})'
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
+    desc: "Run tests (system: {{.CPP_BUILD_SYSTEM}})"
     silent: true
     summary: |
       Run tests for the C++ project
@@ -1006,11 +1006,11 @@ tasks:
         platforms: [windows]
       - task: test:gen-coverage
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
       - echo "- ✅ tests completed"
-    desc: 'Run tests with Bazel'
+    desc: "Run tests with Bazel"
     silent: true
     summary: |
       Run tests using Bazel test runner
@@ -1027,11 +1027,11 @@ tasks:
         cd {{.CPP_BUILD_DIR}} && {{.__TF_MISE_E_UV_RUN}} ctest --output-on-failure {{if eq .CPP_COMPILER "msvc"}}-C Debug{{end}}
       - task: test:gen-coverage
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
       - echo "- ✅ tests completed"
-    desc: 'Run tests with CMake'
+    desc: "Run tests with CMake"
     silent: true
     summary: |
       Run tests using CTest (CMake test runner)
@@ -1048,11 +1048,11 @@ tasks:
         {{.__TF_MISE_E}} xmake run -y {{.CPP_PROJECT_NAME}}-tests
       - task: test:gen-coverage
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}/{{.XMAKE_MODE}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}/{{.XMAKE_MODE}}"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
       - echo "- ✅ tests completed"
-    desc: 'Run tests with XMake'
+    desc: "Run tests with XMake"
     silent: true
     summary: |
       Run tests using XMake test runner
@@ -1168,7 +1168,7 @@ tasks:
             {{end}}
           {{end}}
         platforms: [windows]
-    desc: 'Generate coverage report'
+    desc: "Generate coverage report"
     silent: true
     summary: |
       Generate test coverage report
@@ -1200,10 +1200,10 @@ tasks:
     deps:
       - task: build
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
-    desc: 'Run application'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_PROJECT_NAME: "{{.CPP_PROJECT_NAME}}"
+    desc: "Run application"
     summary: |
       Build and run the application
 
@@ -1242,11 +1242,11 @@ tasks:
     deps:
       - task: build
         vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
+          CPP_BUILD_DIR: "{{.CPP_BUILD_DIR}}"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
           CPP_BUILD_TYPE: Debug
-          CPP_COMPILER: '{{.CPP_COMPILER}}'
-    desc: 'Run application with debugger (gdb/lldb)'
+          CPP_COMPILER: "{{.CPP_COMPILER}}"
+    desc: "Run application with debugger (gdb/lldb)"
     summary: |
       Build and run application with debugger
 
@@ -1265,7 +1265,7 @@ tasks:
     cmds:
       - |
         {{.__TF_MISE_E_UV_RUN}} mkdocs build
-    desc: 'Build documentation'
+    desc: "Build documentation"
     summary: |
       Build project documentation
 
@@ -1281,7 +1281,7 @@ tasks:
         echo "📚 Starting documentation server..."
         echo "📖 Open http://127.0.0.1:8000 in your browser"
         {{.__TF_MISE_E_UV_RUN}} mkdocs serve
-    desc: 'Serve documentation locally with live reload'
+    desc: "Serve documentation locally with live reload"
     summary: |
       Serve documentation with live reload
 
@@ -1295,7 +1295,7 @@ tasks:
     cmds:
       - |
         {{.__TF_MISE_E_UV_RUN}} mkdocs gh-deploy --force
-    desc: 'Deploy documentation to GitHub Pages'
+    desc: "Deploy documentation to GitHub Pages"
     summary: |
       Deploy documentation to GitHub Pages
 
@@ -1313,11 +1313,11 @@ tasks:
     cmds:
       - for:
           var: __TF_VALIDATION_CPP_BUILD_SYSTEMS
-          split: ' '
+          split: " "
         task: validate:by:build-system
         vars:
-          CPP_BUILD_SYSTEM: '{{.ITEM}}'
-    desc: 'Run integration tests for all build systems'
+          CPP_BUILD_SYSTEM: "{{.ITEM}}"
+    desc: "Run integration tests for all build systems"
     silent: true
     summary: |
       Run full validation for all build systems
@@ -1334,14 +1334,14 @@ tasks:
     cmds:
       - for:
           var: __TF_VALIDATION__CPP_COMPILERS
-          split: ' '
+          split: " "
         task: validate:by:build-system:compiler
         vars:
-          CPP_BUILD_DIR: 'build'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-          CPP_COMPILER: '{{.ITEM}}'
-          CPP_PROJECT_NAME: 'cpp-template'
-    desc: 'Run CI pipeline for specific build system'
+          CPP_BUILD_DIR: "build"
+          CPP_BUILD_SYSTEM: "{{.CPP_BUILD_SYSTEM}}"
+          CPP_COMPILER: "{{.ITEM}}"
+          CPP_PROJECT_NAME: "cpp-template"
+    desc: "Run CI pipeline for specific build system"
     silent: true
     summary: |
       Run validation for a specific build system
@@ -1373,7 +1373,7 @@ tasks:
           echo "✅ Validation successful for {{.CPP_BUILD_SYSTEM}} with {{.CPP_COMPILER}}"
           echo "{{.__TF_HEADER_LINE}}"
           echo ""
-    desc: 'Run CI pipeline for specific build system and compiler'
+    desc: "Run CI pipeline for specific build system and compiler"
     silent: true
     summary: |
       Run validation for specific build system and compiler
@@ -1405,7 +1405,7 @@ tasks:
       - task: deps:clean:mise
       - task: deps:clean:npm
       - task: deps:clean:uv
-    desc: 'Clean all project dependencies'
+    desc: "Clean all project dependencies"
     summary: |
       Clean all project dependencies
 
@@ -1425,7 +1425,7 @@ tasks:
             ~/.local/share/mise/installs \
             ~/AppData/mise/installs
       - echo "✓ Mise environment cleaned"
-    desc: 'Clean Mise dependencies'
+    desc: "Clean Mise dependencies"
     summary: |
       Clean Mise tool installations
 
@@ -1441,7 +1441,7 @@ tasks:
         echo "🧹 Cleaning NodeJs dependencies..."
         rm -rf node_modules package-lock.json
         echo "✓ NodeJs environment cleaned"
-    desc: 'Clean NodeJs dependencies'
+    desc: "Clean NodeJs dependencies"
     summary: |
       Clean Node.js dependencies
 
@@ -1456,7 +1456,7 @@ tasks:
         echo "🧹 Cleaning Python dependencies..."
         rm -rf .venv uv.lock
         echo "✓ Python environment cleaned"
-    desc: 'Clean Python dependencies'
+    desc: "Clean Python dependencies"
     summary: |
       Clean Python dependencies
 
@@ -1470,7 +1470,7 @@ tasks:
       - task: deps:sync:mise
       - task: deps:sync:npm
       - task: deps:sync:uv
-    desc: 'Install all project dependencies'
+    desc: "Install all project dependencies"
     summary: |
       Install all project dependencies
 
@@ -1486,10 +1486,10 @@ tasks:
     cmds:
       - |
         echo "📦 Installing Mise dependencies..."
-        touch mise.lock
-        mise trust && mise install --yes
+        echo "MISE_GITHUB_TOKEN=${MISE_GITHUB_TOKEN}"
+        mise trust && mise install --yes && mise lock
         echo "✓ Mise environment ready"
-    desc: 'Install Mise dependencies'
+    desc: "Install Mise dependencies"
     summary: |
       Install Mise tool dependencies
 
@@ -1506,7 +1506,7 @@ tasks:
         {{.__TF_MISE_E}} npm install
         {{.__TF_MISE_E}} npx husky
         echo "✓ NodeJs environment ready"
-    desc: 'Install NodeJs dependencies'
+    desc: "Install NodeJs dependencies"
     summary: |
       Install Node.js dependencies
 
@@ -1522,7 +1522,7 @@ tasks:
         echo "📦 Installing Python dependencies..."
         {{.__TF_MISE_E}} uv sync
         echo "✓ Python environment ready"
-    desc: 'Install Python dependencies'
+    desc: "Install Python dependencies"
     summary: |
       Install Python dependencies
 
@@ -1537,7 +1537,7 @@ tasks:
       - task: deps:refresh:mise
       - task: deps:refresh:npm
       - task: deps:refresh:uv
-    desc: 'Refresh all project dependencies'
+    desc: "Refresh all project dependencies"
     summary: |
       Update all project dependencies
 
@@ -1556,7 +1556,7 @@ tasks:
         touch mise.lock
         mise trust && mise upgrade
         echo "✓ Packages refreshed"
-    desc: 'Refresh all Mise packages (update dependencies)'
+    desc: "Refresh all Mise packages (update dependencies)"
     summary: |
       Update Mise tools to latest versions
 
@@ -1574,7 +1574,7 @@ tasks:
           && {{.__TF_MISE_E}} npm update \
           && {{.__TF_MISE_E}} npm audit fix
         echo "✓ Packages refreshed"
-    desc: 'Refresh all NodeJs packages (update dependencies)'
+    desc: "Refresh all NodeJs packages (update dependencies)"
     summary: |
       Update Node.js packages to latest versions
 
@@ -1590,7 +1590,7 @@ tasks:
         echo "🔄 Refreshing Python packages..."
         {{.__TF_MISE_E}} uv sync --upgrade
         echo "✓ Packages refreshed"
-    desc: 'Refresh all Python packages (update dependencies)'
+    desc: "Refresh all Python packages (update dependencies)"
     summary: |
       Update Python packages to latest versions
 

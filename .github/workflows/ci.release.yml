@@ -61,6 +61,7 @@ jobs:
       build_system: ${{ matrix.build_system }}
       compiler: ${{ matrix.compiler }}
       jobs: build
+    secrets: inherit
 
   # Publish the release
   release:

@@ -1,1 +1,1 @@
-task test
+task format:check lint:check test

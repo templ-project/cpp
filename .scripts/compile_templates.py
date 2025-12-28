@@ -66,6 +66,10 @@ def compile_template(template_name: str, output_path: Path, context: dict) -> No
         template = env.get_template(template_name)
         rendered = template.render(**context)
 
+        # Ensure trailing newline for POSIX compliance
+        if not rendered.endswith("\n"):
+            rendered += "\n"
+
         # Ensure output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
 

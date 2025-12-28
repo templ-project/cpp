@@ -73,10 +73,23 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Base flags for Clang (warnings but not errors for third-party code compatibility)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 
-    # Use libc++ on macOS (built-in), libstdc++ on Linux (for gtest compatibility)
+    # Use libc++ on macOS
     if(APPLE)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++ -lc++abi")
+
+        # For non-system clang (e.g., mise-managed LLVM), we need to explicitly add
+        # the library path and link libraries since the LLVM distribution includes its own libc++
+        get_filename_component(CLANG_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+        get_filename_component(CLANG_ROOT_DIR "${CLANG_BIN_DIR}" DIRECTORY)
+        set(CLANG_LIB_DIR "${CLANG_ROOT_DIR}/lib")
+
+        if(EXISTS "${CLANG_LIB_DIR}/libc++.dylib")
+            # Use the libc++ from the clang installation - must explicitly link both libraries
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${CLANG_LIB_DIR} -lc++ -lc++abi -Wl,-rpath,${CLANG_LIB_DIR}")
+        else()
+            # Fall back to system libc++
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lc++ -lc++abi")
+        endif()
     endif()
 
     # Debug flags with sanitizers (works on all platforms with Clang)
