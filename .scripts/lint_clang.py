@@ -137,6 +137,20 @@ def lint_files(files: List[Path], fix: bool = False, build_dir: str = "build") -
         print("No files to lint")
         return 0
 
+    # Check if compile_commands.json exists
+    compile_db = Path(build_dir) / "compile_commands.json"
+    if not compile_db.exists():
+        # Also check root directory (some generators put it there)
+        root_compile_db = Path("compile_commands.json")
+        if not root_compile_db.exists():
+            print(
+                f"⚠ Skipping clang-tidy: no compile_commands.json found in {build_dir}/ or project root"
+            )
+            print(
+                "  This is expected for Bazel builds on macOS (Hedron has SDK header issues)"
+            )
+            return 0
+
     use_color = Colors.supports_color()
     mode = "Linting and fixing" if fix else "Linting"
 

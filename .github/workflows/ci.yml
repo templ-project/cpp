@@ -24,11 +24,11 @@ jobs:
           # - g++ not available on Windows (use MSVC instead)
           # - clang is the default and works on all platforms
           echo 'include=[
-
+            {"runner": "macos-latest", "build_system": "cmake", "compiler": "clang"},
+            {"runner": "macos-latest", "build_system": "xmake", "compiler": "clang"},
             {"runner": "macos-latest", "build_system": "bazel", "compiler": "clang"}
           ]' | tr -d '\n' | tr -s ' ' >> $GITHUB_OUTPUT
-            # {"runner": "macos-latest", "build_system": "cmake", "compiler": "clang"},
-            # {"runner": "macos-latest", "build_system": "xmake", "compiler": "clang"},
+
             # {"runner": "ubuntu-latest", "build_system": "cmake", "compiler": "clang"},
             # {"runner": "ubuntu-latest", "build_system": "cmake", "compiler": "gcc"},
             # {"runner": "ubuntu-latest", "build_system": "xmake", "compiler": "clang"},
