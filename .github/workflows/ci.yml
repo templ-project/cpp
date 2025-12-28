@@ -8,40 +8,71 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  # Define build matrix - only OS runners, architectures are defined in .build-targets.yml
+  # Define build matrix - OS runners, build systems, and compilers
+  # Note: Not all combinations are valid (e.g., MSVC only on Windows, g++ not on Windows)
   matrix:
     name: Define Matrix
     runs-on: ubuntu-latest
     outputs:
-      runners: ${{ steps.set-matrix.outputs.runners }}
+      include: ${{ steps.set-matrix.outputs.include }}
     steps:
       - name: Set matrix
         id: set-matrix
         run: |
-          # OS runners - each runner builds all architectures for its OS
-          # Architecture targets are defined in .build-targets.yml
-          echo 'runners=[
-            "ubuntu-latest",
-            "macos-latest",
-            "windows-latest"
+          # Define valid OS/build_system/compiler combinations
+          # - MSVC only available on Windows
+          # - g++ not available on Windows (use MSVC instead)
+          # - clang is the default and works on all platforms
+          echo 'include=[
+            {"runner": "ubuntu-latest", "build_system": "cmake", "compiler": "clang"},
+            {"runner": "ubuntu-latest", "build_system": "cmake", "compiler": "gcc"},
+            {"runner": "ubuntu-latest", "build_system": "xmake", "compiler": "clang"},
+            {"runner": "ubuntu-latest", "build_system": "xmake", "compiler": "gcc"},
+            {"runner": "ubuntu-latest", "build_system": "bazel", "compiler": "clang"},
+            {"runner": "macos-latest", "build_system": "cmake", "compiler": "clang"},
+            {"runner": "macos-latest", "build_system": "xmake", "compiler": "clang"},
+            {"runner": "macos-latest", "build_system": "bazel", "compiler": "clang"},
+            {"runner": "windows-latest", "build_system": "cmake", "compiler": "clang"},
+            {"runner": "windows-latest", "build_system": "cmake", "compiler": "msvc"},
+            {"runner": "windows-latest", "build_system": "xmake", "compiler": "clang"},
+            {"runner": "windows-latest", "build_system": "xmake", "compiler": "msvc"},
+            {"runner": "windows-latest", "build_system": "bazel", "compiler": "clang"},
+            {"runner": "windows-latest", "build_system": "bazel", "compiler": "msvc"}
           ]' | tr -d '\n' | tr -s ' ' >> $GITHUB_OUTPUT
 
-  # Validation & Build matrix for different platforms
+  test-scaffold:
+    name: Test Scaffold
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Test bootstrap help
+        run: uvx --from . bootstrap --help
+      - name: Test bootstrap execution
+        run: uvx --from . bootstrap ./test-project
+      - name: Test bootstrap execution (remote)
+        run: uvx --from git+${{ github.server_url }}/${{ github.repository }}.git bootstrap ./test-project-remote
+
+  # Validation & Build matrix for different platforms, build systems, and compilers
   # Option A: build,lint,test before version bump (slower, but validates before release)
   # Option B: lint,test only before version bump (faster, build happens at release time)
   quality:
-    name: Quality (${{ matrix.runner }})
+    name: Quality (${{ matrix.runner }}/${{ matrix.build_system }}/${{ matrix.compiler }})
     needs: [matrix]
     if: |
       !contains(github.event.head_commit.message, 'version_bump/')
     strategy:
+      fail-fast: false
       matrix:
-        runner: ${{ fromJson(needs.matrix.outputs.runners) }}
+        include: ${{ fromJson(needs.matrix.outputs.include) }}
     uses: ./.github/workflows/ci.quality.yml
     permissions:
       contents: write
     with:
       runs-on: ${{ matrix.runner }}
+      build_system: ${{ matrix.build_system }}
+      compiler: ${{ matrix.compiler }}
       jobs: lint,test # Change to 'build,lint,test' to build before version bump
 
   # Version bump (only on main branch push, uses conventional commits)

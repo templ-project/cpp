@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: cmake
+      compiler:
+        description: Compiler to use (clang, gcc, msvc)
+        required: false
+        type: string
+        default: clang
 
 jobs:
   build:
@@ -33,7 +38,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONIOENCODING: utf-8
-        run: task build:all CPP_BUILD_SYSTEM=${{ inputs.build_system }}
+        run: task build:all CPP_BUILD_SYSTEM=${{ inputs.build_system }} CPP_COMPILER=${{ inputs.compiler }}
         shell: bash
 
       - name: Create distribution archives
@@ -46,7 +51,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: build-${{ runner.os }}
+          name: build-${{ runner.os }}-${{ inputs.build_system }}-${{ inputs.compiler }}
           path: dist/*
           if-no-files-found: warn
           retention-days: 1
@@ -72,7 +77,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONIOENCODING: utf-8
         run: |
-          task lint:check CPP_BUILD_SYSTEM=${{ inputs.build_system }}
+          task lint:check CPP_BUILD_SYSTEM=${{ inputs.build_system }} CPP_COMPILER=${{ inputs.compiler }}
         shell: bash
 
   test:
@@ -88,7 +93,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONIOENCODING: utf-8
         run: |
-          task test CPP_BUILD_SYSTEM=${{ inputs.build_system }}
+          task test CPP_BUILD_SYSTEM=${{ inputs.build_system }} CPP_COMPILER=${{ inputs.compiler }}
         shell: bash
 
       - name: Run Tests with Coverage
@@ -97,7 +102,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONIOENCODING: utf-8
         run: |
-          task test:gen-coverage CPP_BUILD_SYSTEM=${{ inputs.build_system }}
+          task test:gen-coverage CPP_BUILD_SYSTEM=${{ inputs.build_system }} CPP_COMPILER=${{ inputs.compiler }}
         shell: bash
 
   duplicate-check:
