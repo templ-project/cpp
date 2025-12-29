@@ -166,7 +166,6 @@ runs:
 
     - name: Sync Dependencies (cache hit - npm/uv only)
       if: |
-        inputs.refresh-deps != 'true' &&
         ((runner.os != 'Windows' && steps.mise-installs-cache-unix.outputs.cache-hit == 'true') ||
          (runner.os == 'Windows' && steps.mise-installs-cache-windows.outputs.cache-hit == 'true'))
       shell: bash

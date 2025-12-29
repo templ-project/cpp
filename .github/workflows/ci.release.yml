@@ -39,10 +39,8 @@ jobs:
           # Using cmake as the primary build system for releases
           echo 'include=[
             {"runner": "ubuntu-latest", "build_system": "cmake", "compiler": "clang"},
-            {"runner": "ubuntu-latest", "build_system": "cmake", "compiler": "gcc"},
             {"runner": "macos-latest", "build_system": "cmake", "compiler": "clang"},
-            {"runner": "windows-latest", "build_system": "cmake", "compiler": "clang"},
-            {"runner": "windows-latest", "build_system": "cmake", "compiler": "msvc"}
+            {"runner": "windows-latest", "build_system": "cmake", "compiler": "clang"}
           ]' | tr -d '\n' | tr -s ' ' >> $GITHUB_OUTPUT
 
   # Build for all platforms
