@@ -1493,7 +1493,7 @@ tasks:
     cmds:
       - |
         echo "📦 Installing Mise dependencies..."
-        mise trust && mise install --yes
+        mise trust && mise install --yes && mise lock
         echo "✓ Mise environment ready"
     desc: 'Install Mise dependencies'
     summary: |
