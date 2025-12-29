@@ -223,12 +223,16 @@ tasks:
           CPP_PROJECT_NAME: '{{.CPP_PROJECT_NAME}}'
           TARGET_ARCH: '{{.TARGET_ARCH}}'
       - cmd: |
+          {{if ne OS "windows"}}
           mkdir -p build
           # Find and copy the binary to build/ with proper naming
           {{if eq .CPP_BUILD_SYSTEM "bazel"}}
           cp bazel-bin/{{.CPP_PROJECT_NAME}}{{.EXE_EXT}} build/{{.OUTPUT_NAME}} 2>/dev/null || true
           {{else}}
           find {{.ARCH_BUILD_DIR}} -name "{{.CPP_PROJECT_NAME}}{{.EXE_EXT}}" -type f | head -n 1 | xargs -I{} cp {} build/{{.OUTPUT_NAME}} 2>/dev/null || true
+          {{end}}
+          {{else}}
+          {{.__TF_COMMAND_WRAPPER}} '{{.__TF_VAR_PREFIX}}dummy=$null;{{.__TF_SEP}}if (-not (Test-Path build)) { New-Item -ItemType Directory -Path build -Force | Out-Null };{{.__TF_SEP}}{{if eq .CPP_BUILD_SYSTEM "bazel"}}Copy-Item -Path "bazel-bin/{{.CPP_PROJECT_NAME}}{{.EXE_EXT}}" -Destination "build/{{.OUTPUT_NAME}}" -ErrorAction SilentlyContinue{{else}}{{.__TF_VAR_PREFIX}}found = Get-ChildItem -Path "{{.ARCH_BUILD_DIR}}" -Recurse -Filter "{{.CPP_PROJECT_NAME}}{{.EXE_EXT}}" -ErrorAction SilentlyContinue | Select-Object -First 1;{{.__TF_SEP}}if ({{.__TF_VAR_PREFIX}}found) { Copy-Item -Path {{.__TF_VAR_PREFIX}}found.FullName -Destination "build/{{.OUTPUT_NAME}}" }{{end}}'
           {{end}}
           echo "Built: build/{{.OUTPUT_NAME}}"
     internal: true

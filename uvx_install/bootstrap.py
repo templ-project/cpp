@@ -6,12 +6,18 @@ Clones the template and prepares it for use as a new project.
 """
 
 import argparse
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+# Ensure stdout/stderr use UTF-8 encoding on Windows
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 
 def parse_args():
@@ -32,19 +38,19 @@ Examples:
 
   # Show help
   uvx --from git+https://github.com/templ-project/cpp.git bootstrap --help
-        """
+        """,
     )
 
     parser.add_argument(
         "path",
         nargs="?",
         default=".",
-        help="Target directory (default: current directory)"
+        help="Target directory (default: current directory)",
     )
 
     parser.add_argument(
         "--project-name",
-        help="Project name (default: extracted from target directory name)"
+        help="Project name (default: extracted from target directory name)",
     )
 
     return parser.parse_args()
@@ -75,10 +81,11 @@ def extract_project_name(target_path):
 
     # Remove any non-alphanumeric characters except hyphens
     import re
-    project_name = re.sub(r'[^a-z0-9-]', '', project_name)
+
+    project_name = re.sub(r"[^a-z0-9-]", "", project_name)
 
     # Ensure it doesn't start or end with hyphens
-    project_name = project_name.strip('-')
+    project_name = project_name.strip("-")
 
     # Fallback to default if empty
     if not project_name:
@@ -92,20 +99,19 @@ def update_cmake_metadata(cmake_path, project_name):
     if not cmake_path.exists():
         return
 
-    with open(cmake_path, 'r') as f:
+    with open(cmake_path, "r") as f:
         content = f.read()
 
     # Update project name and description
     content = content.replace(
-        'project(\n    cpp-template',
-        f'project(\n    {project_name}'
+        "project(\n    cpp-template", f"project(\n    {project_name}"
     )
     content = content.replace(
         'DESCRIPTION "A C++ Bootstrap/Template project using modern tools and best practices"',
-        f'DESCRIPTION "{project_name.replace("-", " ").title()} project"'
+        f'DESCRIPTION "{project_name.replace("-", " ").title()} project"',
     )
 
-    with open(cmake_path, 'w') as f:
+    with open(cmake_path, "w") as f:
         f.write(content)
 
     print("  ✓ Updated CMakeLists.txt metadata")
@@ -116,17 +122,17 @@ def update_vcpkg_metadata(vcpkg_path, project_name):
     if not vcpkg_path.exists():
         return
 
-    with open(vcpkg_path, 'r') as f:
+    with open(vcpkg_path, "r") as f:
         data = json.load(f)
 
     # Update metadata
-    data['name'] = project_name
-    data['version'] = '0.1.0'
-    data['description'] = f'{project_name.replace("-", " ").title()} project'
+    data["name"] = project_name
+    data["version"] = "0.1.0"
+    data["description"] = f"{project_name.replace('-', ' ').title()} project"
 
-    with open(vcpkg_path, 'w') as f:
+    with open(vcpkg_path, "w") as f:
         json.dump(data, f, indent=2)
-        f.write('\n')
+        f.write("\n")
 
     print("  ✓ Updated vcpkg.json metadata")
 
@@ -136,32 +142,27 @@ def update_xmake_metadata(xmake_path, project_name):
     if not xmake_path.exists():
         return
 
-    with open(xmake_path, 'r') as f:
+    with open(xmake_path, "r") as f:
         content = f.read()
 
     # Update project name and description
     content = content.replace(
-        'set_project("cpp-template")',
-        f'set_project("{project_name}")'
+        'set_project("cpp-template")', f'set_project("{project_name}")'
     )
     content = content.replace(
         'set_description("A C++ Bootstrap/Template project using modern tools and best practices")',
-        f'set_description("{project_name.replace("-", " ").title()} project")'
+        f'set_description("{project_name.replace("-", " ").title()} project")',
     )
 
     # Update main target
-    content = content.replace(
-        'target("cpp-template")',
-        f'target("{project_name}")'
-    )
+    content = content.replace('target("cpp-template")', f'target("{project_name}")')
 
     # Update test target
     content = content.replace(
-        'target("cpp-template-tests")',
-        f'target("{project_name}-tests")'
+        'target("cpp-template-tests")', f'target("{project_name}-tests")'
     )
 
-    with open(xmake_path, 'w') as f:
+    with open(xmake_path, "w") as f:
         f.write(content)
 
     print("  ✓ Updated xmake.lua metadata")
@@ -172,16 +173,16 @@ def update_taskfile_metadata(taskfile_path, project_name):
     if not taskfile_path.exists():
         return
 
-    with open(taskfile_path, 'r') as f:
+    with open(taskfile_path, "r") as f:
         content = f.read()
 
     # Update PROJECT_NAME variable default value
     content = content.replace(
-        'PROJECT_NAME: \'{{default .PROJECT_NAME "cpp-template"}}\'',
-        f'PROJECT_NAME: \'{{{{default .PROJECT_NAME "{project_name}"}}}}\''
+        "PROJECT_NAME: '{{default .PROJECT_NAME \"cpp-template\"}}'",
+        f"PROJECT_NAME: '{{{{default .PROJECT_NAME \"{project_name}\"}}}}'",
     )
 
-    with open(taskfile_path, 'w') as f:
+    with open(taskfile_path, "w") as f:
         f.write(content)
 
     print("  ✓ Updated Taskfile.yml metadata")
@@ -192,33 +193,30 @@ def update_readme_metadata(readme_path, project_name):
     if not readme_path.exists():
         return
 
-    with open(readme_path, 'r') as f:
+    with open(readme_path, "r") as f:
         content = f.read()
 
     # Create formatted project title
     project_title = project_name.replace("-", " ").replace("_", " ").title()
 
     # Update title and description
+    content = content.replace("# C++ Bootstrap Template", f"# {project_title}")
     content = content.replace(
-        '# C++ Bootstrap Template',
-        f'# {project_title}'
-    )
-    content = content.replace(
-        '> A comprehensive C++ Bootstrap/Template project using modern tools and best practices',
-        f'> {project_title} - A C++ project'
+        "> A comprehensive C++ Bootstrap/Template project using modern tools and best practices",
+        f"> {project_title} - A C++ project",
     )
 
     # Update bootstrap and clone commands
     content = content.replace(
-        'uvx --from git+https://github.com/templ-project/cpp.git bootstrap ./my-cpp-project',
-        f'uvx --from git+https://your-repo-url.git bootstrap ./{project_name}'
+        "uvx --from git+https://github.com/templ-project/cpp.git bootstrap ./my-cpp-project",
+        f"uvx --from git+https://your-repo-url.git bootstrap ./{project_name}",
     )
     content = content.replace(
-        'git clone https://github.com/templ-project/cpp.git my-cpp-project',
-        f'git clone <your-repo-url> {project_name}'
+        "git clone https://github.com/templ-project/cpp.git my-cpp-project",
+        f"git clone <your-repo-url> {project_name}",
     )
 
-    with open(readme_path, 'w') as f:
+    with open(readme_path, "w") as f:
         f.write(content)
 
     print("  ✓ Updated README.md metadata")
@@ -241,11 +239,18 @@ def clone_template(target_path):
     try:
         # Clone the repository
         print("  Cloning from https://github.com/templ-project/cpp...")
-        subprocess.run([
-            "git", "clone", "--depth", "1",
-            "https://github.com/templ-project/cpp.git",
-            str(target_path)
-        ], check=True, capture_output=True)
+        subprocess.run(
+            [
+                "git",
+                "clone",
+                "--depth",
+                "1",
+                "https://github.com/templ-project/cpp.git",
+                str(target_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
         print(f"  ✓ Template cloned to {target_path}")
     except subprocess.CalledProcessError as e:
         print("❌ Error: Failed to clone repository")

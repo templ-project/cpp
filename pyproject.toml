@@ -116,8 +116,24 @@ indent-string = "    "
 max-line-length = 88
 
 [tool.pylint.main]
-ignore = [".jscpd", ".venv", ".xmake", "build", "coverage", "dist", "docs-html", "node_modules", "uvx_install"]
-ignore-patterns = ["^\\."]
+ignore = [
+  ".jscpd",
+  ".venv",
+  ".xmake",
+  "bazel-bin",
+  "bazel-cpp",
+  "bazel-out",
+  "bazel-testlogs",
+  "build",
+  "build-*",
+  "coverage",
+  "dist",
+  "docs-html",
+  "external",
+  "node_modules",
+  "uvx_install",
+]
+ignore-patterns = ["^\\.#", "^bazel-", "^external$"]
 jobs = 0
 py-version = "3.11"
 source-roots = [".scripts", "src"]

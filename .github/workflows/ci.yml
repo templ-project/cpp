@@ -31,16 +31,14 @@ jobs:
             {"runner": "ubuntu-latest", "build_system": "bazel", "compiler": "clang++"},
             {"runner": "macos-latest", "build_system": "cmake", "compiler": "clang++"},
             {"runner": "macos-latest", "build_system": "xmake", "compiler": "clang++"},
-            {"runner": "macos-latest", "build_system": "bazel", "compiler": "clang++"}
+            {"runner": "macos-latest", "build_system": "bazel", "compiler": "clang++"},
+            {"runner": "windows-latest", "build_system": "cmake", "compiler": "clang++"},
+            {"runner": "windows-latest", "build_system": "cmake", "compiler": "msvc"},
+            {"runner": "windows-latest", "build_system": "xmake", "compiler": "clang++"},
+            {"runner": "windows-latest", "build_system": "xmake", "compiler": "msvc"},
+            {"runner": "windows-latest", "build_system": "bazel", "compiler": "clang++"},
+            {"runner": "windows-latest", "build_system": "bazel", "compiler": "msvc"}
           ]' | tr -d '\n' | tr -s ' ' >> $GITHUB_OUTPUT
-
-
-            # {"runner": "windows-latest", "build_system": "cmake", "compiler": "clang++"},
-            # {"runner": "windows-latest", "build_system": "cmake", "compiler": "msvc"},
-            # {"runner": "windows-latest", "build_system": "xmake", "compiler": "clang++"},
-            # {"runner": "windows-latest", "build_system": "xmake", "compiler": "msvc"},
-            # {"runner": "windows-latest", "build_system": "bazel", "compiler": "clang++"},
-            # {"runner": "windows-latest", "build_system": "bazel", "compiler": "msvc"}
 
   test-scaffold:
     name: Test Scaffold
