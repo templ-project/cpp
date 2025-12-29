@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.0 (2025-12-29)
+
+### Features
+
+* add cross-architecture builds, improve CI/CD, and document known issues ([c7ee72a](https://github.com/templ-project/cpp/commit/c7ee72a3c7fa1c17ca3ec1a17572d83c9abf8ae4))
+
+### Bug Fixes
+
+* add generated build files to eslint ignores and ensure trailing newlines ([4aef0f2](https://github.com/templ-project/cpp/commit/4aef0f2327ffb3b6385e9bbb90a428356ae75e45))
+* changed llvm install backend ([448d953](https://github.com/templ-project/cpp/commit/448d953e3c048459014cf98f0f1c329954ab0559))
+
 ## 0.0.12 (2025-11-09)
 
 ## 0.0.11 (2025-11-09)
