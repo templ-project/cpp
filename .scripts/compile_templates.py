@@ -12,10 +12,16 @@ Usage:
 """
 
 import argparse
+import io
 import os
 import platform
 import sys
 from pathlib import Path
+
+# Ensure stdout/stderr use UTF-8 encoding on Windows
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 try:
     from jinja2 import Environment, FileSystemLoader, StrictUndefined
