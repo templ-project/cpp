@@ -3,7 +3,7 @@
 # Format:
 #   os: Operating system (linux, darwin, windows)
 #   arch: Architecture matching the GitHub runner (x86_64, aarch64)
-#   compiler: Compiler to use (clang)
+#   compiler: Compiler to use (clang++ for C++, msvc on Windows)
 #   build_system: Build system to use (cmake)
 #
 # Note: Each target is built natively on its corresponding GitHub runner.
@@ -18,17 +18,17 @@ targets:
   # Linux x86_64 (ubuntu-latest runner)
   - os: linux
     arch: x86_64
-    compiler: clang
+    compiler: clang++
     build_system: cmake
 
   # macOS aarch64 (macos-latest / macos-14 runner - Apple Silicon)
   - os: darwin
     arch: aarch64
-    compiler: clang
+    compiler: clang++
     build_system: cmake
 
   # Windows x86_64 (windows-latest runner)
   - os: windows
     arch: x86_64
-    compiler: clang
+    compiler: clang++
     build_system: cmake

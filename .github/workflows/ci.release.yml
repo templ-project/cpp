@@ -37,10 +37,11 @@ jobs:
         run: |
           # Define valid OS/build_system/compiler combinations for release builds
           # Using cmake as the primary build system for releases
+          # Note: Use clang++ (C++ compiler) not clang (C compiler) to link C++ stdlib
           echo 'include=[
-            {"runner": "ubuntu-latest", "build_system": "cmake", "compiler": "clang"},
-            {"runner": "macos-latest", "build_system": "cmake", "compiler": "clang"},
-            {"runner": "windows-latest", "build_system": "cmake", "compiler": "clang"}
+            {"runner": "ubuntu-latest", "build_system": "cmake", "compiler": "clang++"},
+            {"runner": "macos-latest", "build_system": "cmake", "compiler": "clang++"},
+            {"runner": "windows-latest", "build_system": "cmake", "compiler": "clang++"}
           ]' | tr -d '\n' | tr -s ' ' >> $GITHUB_OUTPUT
 
   # Build for all platforms
