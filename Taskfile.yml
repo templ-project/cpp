@@ -1,21 +1,29 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+# ============================================================================
+# C++ Template - Taskfile
+# ============================================================================
+# This is the main Taskfile for the C++ template project.
+# Common tasks are imported from .taskfiles/ modules.
+# ============================================================================
 version: '3'
 
-vars:
-  # mise dependent
-  __TF_MISE_E: 'mise trust; mise exec --'
-  __TF_MISE_E_PWSH: 'mise trust; mise exec -- pwsh -NoProfile -ExecutionPolicy Bypass -Command'
-  __TF_MISE_E_PWSH_FILE: 'mise trust; mise exec -- pwsh -NoProfile -ExecutionPolicy Bypass -File'
-  __TF_MISE_E_UV_RUN: 'mise trust; mise exec -- uv run'
-  # os dependent
-  __TF_COMMAND_WRAPPER:
-    sh: |
-      echo '{{if eq OS "windows"}}powershell -ExecutionPolicy Bypass -Command{{else}}bash -c{{end}}'
-  __TF_HEADER_LINE: '=============================================================='
-  __TF_SEP: ' '
-  __TF_VAR_PREFIX:
-    sh: |
-      echo "{{if eq OS "windows"}}\${{else}}{{end}}"
+includes:
+  # ==========================================================================
+  # Shared Modules (sync from generic using: task sync:from:generic)
+  # ==========================================================================
+  common:
+    taskfile: .taskfiles/Taskfile.common.yml
+    internal: true
+  _deps:
+    taskfile: .taskfiles/Taskfile.deps.yml
+    internal: true
+  quality:
+    taskfile: .taskfiles/Taskfile.quality.yml
+    internal: true
+  sync:
+    taskfile: .taskfiles/Taskfile.sync.yml
 
+vars:
   # cpp project defaults
   __TF_VALIDATION_CPP_BUILD_SYSTEMS:
     sh: |
@@ -54,30 +62,13 @@ env:
 
 tasks:
   # ==========================================================================
-  # Generic Tasks
+  # Utility Tasks
   # ==========================================================================
 
   print:env:
-    cmds:
-      - cmd: |
-          {{.__TF_MISE_E}} env | sort
-        platforms: [darwin, linux]
-      - cmd: |
-          {{.__TF_MISE_E}} {{ .__TF_SEP
-            }}pwsh -Command '$BashPath=(Get-Command bash -ErrorAction SilentlyContinue).Path;{{ .__TF_SEP
-              }}if ($BashPath) { & $BashPath -c "env | sort" }{{ .__TF_SEP
-              }}else { Get-ChildItem "Env:" | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Value)" } }'
-        platforms: [windows]
     desc: 'Print current build environment variables'
-    summary: |
-      Print current build environment variables
-
-      Displays all environment variables available during the build process,
-      sorted alphabetically. Useful for debugging build issues and verifying
-      tool configurations.
-
-      Examples:
-        task print:env
+    cmds:
+      - task: common:print:env
 
   # ==========================================================================
   # Build Tasks
@@ -466,488 +457,110 @@ tasks:
         task clean                           # Remove all artifacts
 
   # ============================================================================
-  # Code Quality Tasks
+  # Code Quality Tasks (Project-specific overrides)
   # ============================================================================
 
   format:
-    cmds:
-      - task: format:clang
-      - task: format:prettier
-      - task: format:ruff
-      - cmd: echo "✅ Code format completed"
     desc: 'Format code and fix issues'
     summary: |
       Format all code in the project
 
-      Runs all formatters in sequence:
-        1. clang-format for C++ files
-        2. Prettier for JSON, YAML, Markdown files
-        3. Ruff for Python files
+      Runs clang-format, Prettier, and Ruff formatters.
 
       Examples:
-        task format                          # Format all code
+        task format
+    cmds:
+      - task: format:clang
+      - task: quality:format:prettier
+      - task: quality:format:ruff
+      - cmd: echo "✅ Code format completed"
 
   format:clang:
+    desc: 'Format C++ code using clang-format'
+    silent: true
     cmds:
       - |
         {{.__TF_MISE_E}} python .scripts/format_clang.py --fix
-    desc: 'Format C++ code using clang-format'
-    silent: true
-    summary: |
-      Format C++ code using clang-format
-
-      Formats all C++ source files (.cpp, .hpp, .h) using clang-format
-      with the project's .clang-format configuration.
-
-      Examples:
-        task format:clang                    # Format C++ files
-
-  format:prettier:
-    cmds:
-      - task: prettier
-        vars:
-          CLI_ARGS: '--write .'
-    desc: 'Format code using Prettier'
-    silent: true
-    summary: |
-      Format configuration files using Prettier
-
-      Formats JSON, YAML, Markdown, and other supported files
-      using Prettier with the project's configuration.
-
-      Examples:
-        task format:prettier                 # Format config files
-
-  prettier:
-    cmds:
-      - |
-        {{.__TF_MISE_E}} npx prettier {{.CLI_ARGS}}
-      - echo "- ✅ prettier format completed"
-    silent: true
-    sources:
-      - '**/*.{json,md,toml,yaml,yml}'
-    summary: |
-      Run Prettier with custom arguments
-
-      Internal task for running Prettier. Use format:prettier or
-      format:check:prettier instead.
-
-      Variables:
-        CLI_ARGS: Arguments to pass to Prettier
-
-  format:ruff:
-    aliases: [format:py, format:python]
-    cmds:
-      - task: ruff
-        vars:
-          CLI_ARGS: 'format .'
-      - echo "- ✅ ruff format completed"
-    desc: 'Format Python code using Ruff'
-    silent: true
-    summary: |
-      Format Python code using Ruff
-
-      Formats all Python files using Ruff formatter with the
-      project's pyproject.toml configuration.
-
-      Examples:
-        task format:ruff                     # Format Python files
-        task format:py                       # Alias
-        task format:python                   # Alias
-
-  ruff:
-    cmds:
-      - |
-        {{.__TF_MISE_E_UV_RUN}} ruff {{.CLI_ARGS}}
-    desc: 'Run Ruff'
-    silent: true
-    sources:
-      - '**/*.py'
-    summary: |
-      Run Ruff with custom arguments
-
-      Internal task for running Ruff. Use format:ruff or
-      lint:ruff instead.
-
-      Variables:
-        CLI_ARGS: Arguments to pass to Ruff
+      - cmd: echo "- ✅ clang-format completed"
 
   format:check:
+    desc: 'Check code formatting without fixing'
     cmds:
       - task: format:check:clang
-      - task: format:check:prettier
-      - task: format:check:ruff
+      - task: quality:format:check:prettier
+      - task: quality:format:check:ruff
       - cmd: echo "✅ Code format check completed"
-    desc: 'Check code formatting without fixing'
-    summary: |
-      Check code formatting without making changes
-
-      Verifies all code is properly formatted without modifying files.
-      Useful for CI pipelines to enforce formatting standards.
-
-      Examples:
-        task format:check                    # Check all formatting
 
   format:check:clang:
+    desc: 'Check C++ code formatting using clang-format'
+    silent: true
     cmds:
       - |
         {{.__TF_MISE_E}} python .scripts/format_clang.py --check
-    desc: 'Check C++ code formatting using clang-format'
-    silent: true
-    summary: |
-      Check C++ code formatting without fixing
-
-      Verifies C++ files are properly formatted using clang-format.
-      Exits with error if any files need formatting.
-
-      Examples:
-        task format:check:clang              # Check C++ formatting
-
-  format:check:prettier:
-    cmds:
-      - task: prettier
-        vars:
-          CLI_ARGS: '--check .'
-      - echo "- ✅ prettier format check completed"
-    desc: 'Check code formatting using Prettier'
-    silent: true
-    summary: |
-      Check Prettier formatting without fixing
-
-      Verifies configuration files are properly formatted.
-      Exits with error if any files need formatting.
-
-      Examples:
-        task format:check:prettier           # Check Prettier formatting
-
-  format:check:ruff:
-    aliases: [format:check:py, format:check:python]
-    cmds:
-      - task: ruff
-        vars:
-          CLI_ARGS: 'format --check .'
-      - echo "- ✅ ruff format check completed"
-    desc: 'Check Python code formatting using Ruff'
-    silent: true
-    summary: |
-      Check Python code formatting without fixing
-
-      Verifies Python files are properly formatted using Ruff.
-      Exits with error if any files need formatting.
-
-      Examples:
-        task format:check:ruff               # Check Python formatting
-        task format:check:py                 # Alias
+      - cmd: echo "- ✅ clang-format check completed"
 
   lint:
-    cmds:
-      - task: lint:clang
-      - task: lint:eslint
-      - task: lint:pylint
-      - task: lint:pwshlint
-      - task: lint:shlint
-      - cmd: echo "✅ Linting completed"
     desc: 'Run linter and fix issues'
     summary: |
       Run all linters and fix issues
 
-      Runs all linters in sequence with auto-fix enabled:
-        1. clang-tidy for C++ files
-        2. ESLint for config files
-        3. Pylint for Python files
-        4. PSScriptAnalyzer for PowerShell files
-        5. ShellCheck for shell scripts
+      Runs clang-tidy, ESLint, Pylint, PSScriptAnalyzer, and ShellCheck.
 
       Examples:
-        task lint                            # Lint and fix all code
+        task lint
+    cmds:
+      - task: lint:clang
+      - task: quality:lint:eslint
+      - task: quality:lint:pylint
+      - task: quality:lint:pwshlint
+      - task: quality:lint:shlint
+      - cmd: echo "✅ Linting completed"
 
   lint:clang:
+    desc: 'Lint C++ code and fix issues'
+    silent: true
+    deps:
+      - task: build
+        vars:
+          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
+          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
     cmds:
       - |
         {{.__TF_MISE_E_UV_RUN}} python .scripts/lint_clang.py --fix
-      - echo "- ✅ clang lint completed"
+      - echo "- ✅ clang-tidy completed"
+
+  lint:check:
+    desc: 'Run linter without fixing'
+    cmds:
+      - task: lint:check:clang
+      - task: quality:lint:check:eslint
+      - task: quality:lint:check:pylint
+      - task: quality:lint:check:pwshlint
+      - task: quality:lint:check:shlint
+      - cmd: echo "✅ Linting check completed"
+
+  lint:check:clang:
+    desc: 'Check C++ code using clang-tidy'
+    silent: true
     deps:
       - task: build
         vars:
           CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
           CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-    desc: 'Lint C++ code and fix issues'
-    silent: true
-    summary: |
-      Lint C++ code using clang-tidy
-
-      Analyzes C++ code for bugs, style issues, and performance
-      problems. Requires compile_commands.json from a previous build.
-
-      Examples:
-        task lint:clang                      # Lint C++ with fixes
-
-  lint:eslint:
-    cmds:
-      - task: eslint
-        vars:
-          CLI_ARGS: '--fix .'
-      - echo "- ✅ eslint lint completed"
-    desc: 'Lint code using ESLint'
-    silent: true
-    summary: |
-      Lint configuration files using ESLint
-
-      Analyzes JSON, YAML, Markdown files for issues and
-      automatically fixes what it can.
-
-      Examples:
-        task lint:eslint                     # Lint config files
-
-  eslint:
-    cmds:
-      - |
-        {{.__TF_MISE_E}} npx eslint {{.CLI_ARGS}}
-    desc: 'Run ESLint'
-    silent: true
-    sources:
-      - '**/*.{json,md,toml,yaml,yml}'
-    summary: |
-      Run ESLint with custom arguments
-
-      Internal task for running ESLint. Use lint:eslint or
-      lint:check:eslint instead.
-
-      Variables:
-        CLI_ARGS: Arguments to pass to ESLint
-
-  lint:pylint:
-    aliases: [lint:py, lint:python]
-    cmds:
-      - task: pylint
-        vars:
-          CLI_ARGS: '.'
-      - echo "- ✅ pylint lint completed"
-    desc: 'Lint Python scripts using pylint'
-    silent: true
-    summary: |
-      Lint Python code using Pylint
-
-      Analyzes Python files for errors, coding standards,
-      and code smells.
-
-      Examples:
-        task lint:pylint                     # Lint Python files
-        task lint:py                         # Alias
-
-  pylint:
-    cmds:
-      - |
-        {{.__TF_MISE_E_UV_RUN}} pylint {{.CLI_ARGS}}
-    desc: 'Run pylint'
-    silent: true
-    sources:
-      - '**/*.py'
-    summary: |
-      Run Pylint with custom arguments
-
-      Internal task for running Pylint. Use lint:pylint instead.
-
-      Variables:
-        CLI_ARGS: Arguments to pass to Pylint
-
-  lint:pwshlint:
-    aliases: [lint:pwsh]
-    cmds:
-      - task: pwshlint_py
-        vars:
-          CLI_ARGS: '--fix'
-      - echo "- ✅ pwsh lint completed"
-    desc: 'Lint PowerShell scripts using PSScriptAnalyzer'
-    silent: true
-    summary: |
-      Lint PowerShell scripts using PSScriptAnalyzer
-
-      Analyzes PowerShell files for best practices and
-      common issues.
-
-      Examples:
-        task lint:pwshlint                   # Lint PowerShell files
-        task lint:pwsh                       # Alias
-
-  pwshlint_py:
-    cmds:
-      - |
-        {{.__TF_MISE_E_UV_RUN}} .scripts/pwshlint.py {{.CLI_ARGS}}
-    desc: 'Run PSScriptAnalyzer'
-    silent: true
-    sources:
-      - '**/*.ps1'
-    summary: |
-      Run PSScriptAnalyzer with custom arguments
-
-      Internal task for running PSScriptAnalyzer.
-      Use lint:pwshlint instead.
-
-      Variables:
-        CLI_ARGS: Arguments to pass to pwshlint.py
-
-  lint:shlint:
-    aliases: [lint:bash, lint:sh]
-    cmds:
-      - task: shlint_py
-        vars:
-          CLI_ARGS: '--fix'
-      - echo "- ✅ bash lint completed"
-    desc: 'Lint shell scripts using ShellCheck'
-    silent: true
-    summary: |
-      Lint shell scripts using ShellCheck
-
-      Analyzes shell scripts for common bugs and
-      portability issues.
-
-      Examples:
-        task lint:shlint                     # Lint shell scripts
-        task lint:sh                         # Alias
-        task lint:bash                       # Alias
-
-  shlint_py:
-    cmds:
-      - cmd: |
-          {{.__TF_MISE_E}} python .scripts/shlint.py {{.CLI_ARGS}}
-        platforms: [darwin, linux, windows]
-    desc: 'Run ShellCheck'
-    silent: true
-    sources:
-      - '**/*.sh'
-    summary: |
-      Run ShellCheck with custom arguments
-
-      Internal task for running ShellCheck.
-      Use lint:shlint instead.
-
-      Variables:
-        CLI_ARGS: Arguments to pass to shlint.py
-
-  lint:check:
-    cmds:
-      - task: lint:check:clang
-      - task: lint:check:eslint
-      - task: lint:check:pylint
-      - task: lint:check:pwshlint
-      - task: lint:check:shlint
-      - cmd: echo "✅ Linting check completed"
-    desc: 'Run linter without fixing'
-    summary: |
-      Run all linters without fixing issues
-
-      Checks code for linting issues without modifying files.
-      Useful for CI pipelines to enforce coding standards.
-
-      Examples:
-        task lint:check                      # Check all linting
-
-  lint:check:clang:
     cmds:
       - |
         {{.__TF_MISE_E_UV_RUN}} python .scripts/lint_clang.py
-      - echo "- ✅ clang lint check completed"
-    deps:
-      - task: build
-        vars:
-          CPP_BUILD_DIR: '{{.CPP_BUILD_DIR}}'
-          CPP_BUILD_SYSTEM: '{{.CPP_BUILD_SYSTEM}}'
-    desc: 'Check C++ code using clang-tidy'
-    silent: true
-    summary: |
-      Check C++ code using clang-tidy without fixing
-
-      Analyzes C++ code and reports issues without modifying files.
-
-      Examples:
-        task lint:check:clang                # Check C++ linting
-
-  lint:check:eslint:
-    cmds:
-      - task: eslint
-        vars:
-          CLI_ARGS: '.'
-      - echo "- ✅ eslint lint check completed"
-    desc: 'Check config files using eslint'
-    silent: true
-    summary: |
-      Check ESLint without fixing
-
-      Analyzes configuration files and reports issues.
-
-      Examples:
-        task lint:check:eslint               # Check ESLint
-
-  lint:check:pylint:
-    aliases: [lint:check:py, lint:check:python]
-    cmds:
-      - task: lint:pylint
-      - echo "- ✅ pylint lint check completed"
-    desc: 'Check Python scripts using pylint'
-    silent: true
-    summary: |
-      Check Python code using Pylint without fixing
-
-      Analyzes Python files and reports issues.
-
-      Examples:
-        task lint:check:pylint               # Check Python linting
-        task lint:check:py                   # Alias
-
-  lint:check:pwshlint:
-    aliases: [lint:check:pwsh]
-    cmds:
-      - task: pwshlint_py
-      - echo "- ✅ pwsh lint completed"
-    desc: 'Check PowerShell scripts using PSScriptAnalyzer'
-    silent: true
-    summary: |
-      Check PowerShell scripts without fixing
-
-      Analyzes PowerShell files and reports issues.
-
-      Examples:
-        task lint:check:pwshlint             # Check PowerShell linting
-        task lint:check:pwsh                 # Alias
-
-  lint:check:shlint:
-    aliases: [lint:check:bash, lint:check:sh]
-    cmds:
-      - task: shlint_py
-      - echo "- ✅ bash lint completed"
-    desc: 'Check shell scripts using ShellCheck'
-    silent: true
-    summary: |
-      Check shell scripts without fixing
-
-      Analyzes shell scripts and reports issues.
-
-      Examples:
-        task lint:check:shlint               # Check shell linting
-        task lint:check:sh                   # Alias
+      - echo "- ✅ clang-tidy check completed"
 
   lint-staged:
-    cmds:
-      - |
-        {{.__TF_MISE_E}} npx -y lint-staged
     desc: 'Run linter on staged files and fix issues'
-    silent: true
-    summary: |
-      Run linters on git staged files only
-
-      Runs appropriate linters on files staged for commit.
-      Used by pre-commit hooks for fast feedback.
-
-      Examples:
-        task lint-staged                     # Lint staged files
+    cmds:
+      - task: quality:lint-staged
 
   duplicate-check:
-    cmds:
-      - |
-        {{.__TF_MISE_E}} npm run duplicate-check
-      - git add .jscpd/jscpd-badge.svg 2>/dev/null || true
     desc: 'Check for duplicate code using jscpd'
+    cmds:
+      - task: quality:duplicate-check
     summary: |
       Check for duplicate code using jscpd
 
@@ -1404,204 +1017,62 @@ tasks:
           CPP_BUILD_SYSTEM=cmake CPP_COMPILER=clang++
 
   # ============================================================================
-  # Dependencies
+  # Dependency Tasks (re-export from _deps module)
   # ============================================================================
 
-  deps:clean:
-    cmds:
-      - task: deps:clean:mise
-      - task: deps:clean:npm
-      - task: deps:clean:uv
-    desc: 'Clean all project dependencies'
-    summary: |
-      Clean all project dependencies
-
-      Removes all installed dependencies:
-        - Mise tool installations
-        - Node.js node_modules
-        - Python virtual environment
-
-      Examples:
-        task deps:clean                      # Clean all deps
-
-  deps:clean:mise:
-    cmds:
-      - echo "🧹 Cleaning Mise dependencies..."
-      - cmd: |
-          rm -rf \
-            ~/.local/share/mise/installs \
-            ~/AppData/mise/installs
-      - echo "✓ Mise environment cleaned"
-    desc: 'Clean Mise dependencies'
-    summary: |
-      Clean Mise tool installations
-
-      Removes all tools installed by Mise from the global
-      installation directory.
-
-      Examples:
-        task deps:clean:mise                 # Clean Mise tools
-
-  deps:clean:npm:
-    cmds:
-      - |
-        echo "🧹 Cleaning NodeJs dependencies..."
-        rm -rf node_modules package-lock.json
-        echo "✓ NodeJs environment cleaned"
-    desc: 'Clean NodeJs dependencies'
-    summary: |
-      Clean Node.js dependencies
-
-      Removes node_modules directory and package-lock.json.
-
-      Examples:
-        task deps:clean:npm                  # Clean npm deps
-
-  deps:clean:uv:
-    cmds:
-      - |
-        echo "🧹 Cleaning Python dependencies..."
-        rm -rf .venv uv.lock
-        echo "✓ Python environment cleaned"
-    desc: 'Clean Python dependencies'
-    summary: |
-      Clean Python dependencies
-
-      Removes the virtual environment and uv lock file.
-
-      Examples:
-        task deps:clean:uv                   # Clean Python deps
-
   deps:sync:
+    desc: 'Install all project dependencies'
     cmds:
       - task: deps:sync:mise
       - task: deps:sync:npm
       - task: deps:sync:uv
-    desc: 'Install all project dependencies'
-    summary: |
-      Install all project dependencies
-
-      Installs all dependencies in order:
-        1. Mise tools (compilers, build systems)
-        2. Node.js packages (linters, formatters)
-        3. Python packages (build scripts, docs)
-
-      Examples:
-        task deps:sync                       # Install all deps
 
   deps:sync:mise:
     cmds:
-      - |
-        echo "📦 Installing Mise dependencies..."
-        mise trust && mise install --yes && mise lock
-        echo "✓ Mise environment ready"
-    desc: 'Install Mise dependencies'
-    summary: |
-      Install Mise tool dependencies
-
-      Installs all tools defined in .mise.toml including
-      compilers, build systems, and development tools.
-
-      Examples:
-        task deps:sync:mise                  # Install Mise tools
+      - task: _deps:sync:mise
 
   deps:sync:npm:
     cmds:
-      - |
-        echo "📦 Installing NodeJs dependencies..."
-        {{.__TF_MISE_E}} npm install
-        {{.__TF_MISE_E}} npx husky
-        echo "✓ NodeJs environment ready"
-    desc: 'Install NodeJs dependencies'
-    summary: |
-      Install Node.js dependencies
-
-      Installs npm packages from package.json and sets up
-      Husky git hooks.
-
-      Examples:
-        task deps:sync:npm                   # Install npm packages
+      - task: _deps:sync:npm
 
   deps:sync:uv:
     cmds:
-      - |
-        echo "📦 Installing Python dependencies..."
-        {{.__TF_MISE_E}} uv sync
-        echo "✓ Python environment ready"
-    desc: 'Install Python dependencies'
-    summary: |
-      Install Python dependencies
+      - task: _deps:sync:uv
 
-      Creates a virtual environment and installs packages
-      from pyproject.toml using uv.
+  deps:clean:
+    desc: 'Clean all project dependencies'
+    cmds:
+      - task: deps:clean:mise
+      - task: deps:clean:npm
+      - task: deps:clean:uv
 
-      Examples:
-        task deps:sync:uv                    # Install Python packages
+  deps:clean:mise:
+    cmds:
+      - task: _deps:clean:mise
+
+  deps:clean:npm:
+    cmds:
+      - task: _deps:clean:npm
+
+  deps:clean:uv:
+    cmds:
+      - task: _deps:clean:uv
 
   deps:refresh:
+    desc: 'Refresh all project dependencies'
     cmds:
       - task: deps:refresh:mise
       - task: deps:refresh:npm
       - task: deps:refresh:uv
-    desc: 'Refresh all project dependencies'
-    summary: |
-      Update all project dependencies
-
-      Updates all dependencies to their latest compatible versions:
-        1. Mise tools
-        2. Node.js packages
-        3. Python packages
-
-      Examples:
-        task deps:refresh                    # Update all deps
 
   deps:refresh:mise:
     cmds:
-      - |
-        echo "🔄 Refreshing Mise packages..."
-        touch mise.lock
-        mise trust && mise upgrade
-        echo "✓ Packages refreshed"
-    desc: 'Refresh all Mise packages (update dependencies)'
-    summary: |
-      Update Mise tools to latest versions
-
-      Upgrades all Mise-managed tools to their latest versions
-      as allowed by .mise.toml constraints.
-
-      Examples:
-        task deps:refresh:mise               # Update Mise tools
+      - task: _deps:refresh:mise
 
   deps:refresh:npm:
     cmds:
-      - |
-        echo "🔄 Refreshing NodeJs packages..."
-        {{.__TF_MISE_E}} npm outdated \
-          && {{.__TF_MISE_E}} npm update \
-          && {{.__TF_MISE_E}} npm audit fix
-        echo "✓ Packages refreshed"
-    desc: 'Refresh all NodeJs packages (update dependencies)'
-    summary: |
-      Update Node.js packages to latest versions
-
-      Shows outdated packages, updates them, and runs
-      security audit fixes.
-
-      Examples:
-        task deps:refresh:npm                # Update npm packages
+      - task: _deps:refresh:npm
 
   deps:refresh:uv:
     cmds:
-      - |
-        echo "🔄 Refreshing Python packages..."
-        {{.__TF_MISE_E}} uv sync --upgrade
-        echo "✓ Packages refreshed"
-    desc: 'Refresh all Python packages (update dependencies)'
-    summary: |
-      Update Python packages to latest versions
-
-      Updates all Python packages to their latest versions
-      as allowed by pyproject.toml constraints.
-
-      Examples:
-        task deps:refresh:uv                 # Update Python packages
+      - task: _deps:refresh:uv

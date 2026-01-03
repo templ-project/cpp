@@ -135,3 +135,6 @@ __pycache__/
 *.pid.lock
 *.seed
 pids
+
+# PSScriptAnalyzer install script (generated)
+.github/scripts/install-psscriptanalyzer.ps1

@@ -8,7 +8,7 @@ Clones the template and prepares it for use as a new project.
 import argparse
 import io
 import json
-import os
+import re
 import shutil
 import subprocess
 import sys
@@ -72,7 +72,7 @@ def extract_project_name(target_path):
     dir_name = Path(target_path).name
 
     # Handle current directory case
-    if dir_name == "." or dir_name == "":
+    if dir_name in (".", ""):
         dir_name = Path.cwd().name
 
     # Convert to a valid project name
@@ -80,8 +80,6 @@ def extract_project_name(target_path):
     project_name = dir_name.replace(" ", "-").replace("_", "-").lower()
 
     # Remove any non-alphanumeric characters except hyphens
-    import re
-
     project_name = re.sub(r"[^a-z0-9-]", "", project_name)
 
     # Ensure it doesn't start or end with hyphens
@@ -99,7 +97,7 @@ def update_cmake_metadata(cmake_path, project_name):
     if not cmake_path.exists():
         return
 
-    with open(cmake_path, "r") as f:
+    with open(cmake_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     # Update project name and description
@@ -111,7 +109,7 @@ def update_cmake_metadata(cmake_path, project_name):
         f'DESCRIPTION "{project_name.replace("-", " ").title()} project"',
     )
 
-    with open(cmake_path, "w") as f:
+    with open(cmake_path, "w", encoding="utf-8") as f:
         f.write(content)
 
     print("  ✓ Updated CMakeLists.txt metadata")
@@ -122,7 +120,7 @@ def update_vcpkg_metadata(vcpkg_path, project_name):
     if not vcpkg_path.exists():
         return
 
-    with open(vcpkg_path, "r") as f:
+    with open(vcpkg_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     # Update metadata
@@ -130,7 +128,7 @@ def update_vcpkg_metadata(vcpkg_path, project_name):
     data["version"] = "0.1.0"
     data["description"] = f"{project_name.replace('-', ' ').title()} project"
 
-    with open(vcpkg_path, "w") as f:
+    with open(vcpkg_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
 
@@ -142,7 +140,7 @@ def update_xmake_metadata(xmake_path, project_name):
     if not xmake_path.exists():
         return
 
-    with open(xmake_path, "r") as f:
+    with open(xmake_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     # Update project name and description
@@ -162,7 +160,7 @@ def update_xmake_metadata(xmake_path, project_name):
         'target("cpp-template-tests")', f'target("{project_name}-tests")'
     )
 
-    with open(xmake_path, "w") as f:
+    with open(xmake_path, "w", encoding="utf-8") as f:
         f.write(content)
 
     print("  ✓ Updated xmake.lua metadata")
@@ -173,7 +171,7 @@ def update_taskfile_metadata(taskfile_path, project_name):
     if not taskfile_path.exists():
         return
 
-    with open(taskfile_path, "r") as f:
+    with open(taskfile_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     # Update PROJECT_NAME variable default value
@@ -182,7 +180,7 @@ def update_taskfile_metadata(taskfile_path, project_name):
         f"PROJECT_NAME: '{{{{default .PROJECT_NAME \"{project_name}\"}}}}'",
     )
 
-    with open(taskfile_path, "w") as f:
+    with open(taskfile_path, "w", encoding="utf-8") as f:
         f.write(content)
 
     print("  ✓ Updated Taskfile.yml metadata")
@@ -193,7 +191,7 @@ def update_readme_metadata(readme_path, project_name):
     if not readme_path.exists():
         return
 
-    with open(readme_path, "r") as f:
+    with open(readme_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     # Create formatted project title
@@ -216,7 +214,7 @@ def update_readme_metadata(readme_path, project_name):
         f"git clone <your-repo-url> {project_name}",
     )
 
-    with open(readme_path, "w") as f:
+    with open(readme_path, "w", encoding="utf-8") as f:
         f.write(content)
 
     print("  ✓ Updated README.md metadata")
@@ -231,7 +229,7 @@ def clone_template(target_path):
 
     # Check if directory is empty
     if any(target_path.iterdir()):
-        print(f"❌ Error: Target directory is not empty")
+        print("Error: Target directory is not empty")
         print(f"   Directory: {target_path}")
         print("   Please use an empty directory or remove existing files.")
         sys.exit(1)
@@ -287,13 +285,31 @@ def bootstrap(target_path, project_name=None):
     bootstrap_script = target_path / "bootstrap.py"
     remove_if_exists(bootstrap_script)
 
-    # Remove _install directory if it exists
-    install_dir = target_path / "_install"
+    # Remove _uvx_install directory
+    install_dir = target_path / "_uvx_install"
     remove_if_exists(install_dir)
+
+    # Remove legacy install directories if they exist
+    old_install_dir = target_path / "_install"
+    remove_if_exists(old_install_dir)
+    legacy_install_dir = target_path / ".uvx-install"
+    remove_if_exists(legacy_install_dir)
 
     # Remove pyproject.toml (bootstrap packaging file)
     pyproject_file = target_path / "pyproject.toml"
     remove_if_exists(pyproject_file)
+
+    # Remove mise.lock file
+    mise_lock = target_path / ".mise.lock"
+    remove_if_exists(mise_lock)
+
+    # Remove .cwai directory
+    cwai_dir = target_path / ".cwai"
+    remove_if_exists(cwai_dir)
+
+    # Remove .github/prompts directory
+    github_prompts_dir = target_path / ".github" / "prompts"
+    remove_if_exists(github_prompts_dir)
 
     print(f"\n📝 Updating project metadata for '{project_name}'...\n")
 
