@@ -57,14 +57,17 @@ macos-arm64 = { asset_pattern = "cmake-*-macos-universal.tar.gz", bin_path = "CM
 windows-x64 = { asset_pattern = "cmake-*-windows-x86_64.zip" }
 
 # https://github.com/xmake-io/xmake/releases
+# NOTE: XMake releases raw binaries (not archives) for Linux/macOS.
+#       The postinstall hook makes them executable.
 #
 [tools."github:xmake-io/xmake"]
-version = "3.0.3"
+version = "3.0.6"
 bin = "xmake"
 
 [tools."github:xmake-io/xmake".platforms]
 linux-x64 = { asset_pattern = "xmake-bundle-v*.linux.x86_64", bin = "xmake" }
 macos-arm64 = { asset_pattern = "xmake-bundle-v*.macos.arm64", bin = "xmake" }
+macos-x64 = { asset_pattern = "xmake-bundle-v*.macos.x86_64", bin = "xmake" }
 windows-x64 = { asset_pattern = "xmake-bundle-v*.win64.exe", bin = "xmake.exe" }
 
 # ==========================================================================
@@ -104,7 +107,10 @@ windows-x64 = { asset_pattern = "PowerShell-*-win-x64.zip" }
 ############################################################################
 
 [hooks]
-# Fix PowerShell installation (mise extraction loses Modules/ folder)
+# Fix installations on postinstall:
+# 1. PowerShell: mise extraction loses Modules/ folder, needs re-extraction
+# 2. XMake: raw binaries (not archives) need executable permission on Unix
+#
 # Windows: use powershell.exe (Windows PowerShell 5.1, always available) to run fix
-# Linux/macOS: run bash script
-postinstall = "{% if os() == 'windows' %}powershell.exe -NoProfile -ExecutionPolicy Bypass -File .scripts/fix-mise-pwsh.ps1{% else %}bash .scripts/fix-mise-pwsh.sh 2>/dev/null{% endif %}"
+# Linux/macOS: run bash script for PowerShell fix, then chmod xmake binary
+postinstall = "{% if os() == 'windows' %}powershell.exe -NoProfile -ExecutionPolicy Bypass -File .scripts/fix-mise-pwsh.ps1{% else %}bash .scripts/fix-mise-pwsh.sh 2>/dev/null; chmod +x ~/.local/share/mise/installs/github-xmake-io-xmake/*/xmake 2>/dev/null || true{% endif %}"

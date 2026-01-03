@@ -743,6 +743,7 @@ tasks:
             {{end}}
 
           echo "📊 Generating coverage report..."
+          eval "$(mise trust && mise env)"
 
           GCOV_EXEC="gcov"
           {{if eq .CPP_COMPILER "clang++"}}
@@ -762,7 +763,7 @@ tasks:
           fi
           {{end}}
 
-          {{.__TF_MISE_E_UV_RUN}} gcovr --root . \
+          uv run gcovr --root . \
             --filter 'src/.*' --filter 'include/.*' \
             --exclude 'tests/.*' --exclude 'build/_deps/.*' \
             --gcov-executable "$GCOV_EXEC" \
@@ -770,7 +771,7 @@ tasks:
             --txt
 
           mkdir -p coverage
-          {{.__TF_MISE_E_UV_RUN}} gcovr --root . \
+          uv run gcovr --root . \
             --filter 'src/.*' --filter 'include/.*' \
             --exclude 'tests/.*' --exclude 'build/_deps/.*' \
             --gcov-executable "$GCOV_EXEC" \
